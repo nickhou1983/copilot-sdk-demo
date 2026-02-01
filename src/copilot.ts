@@ -318,26 +318,24 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
       })
     );
 
-    // 发送消息并等待完成（使用 sendAndWait 确保等待工具调用完成）
-    const result = await session.sendAndWait({
+    // 创建完成 Promise
+    const completionPromise = new Promise<void>((resolve) => {
+      const checkComplete = setInterval(() => {
+        if (completed) {
+          clearInterval(checkComplete);
+          resolve();
+        }
+      }, 100);
+    });
+
+    // 发送消息（非阻塞）
+    await session.send({
       prompt,
       attachments,
-    }, 120000); // 120秒超时
-    
-    // sendAndWait 返回后，如果还没完成，使用返回的内容
-    if (!completed && result?.data?.content) {
-      const finalContent = result.data.content;
-      
-      if (!hasDelta && fullContent.length === 0) {
-        // 如果没有收到增量事件，进行模拟流式输出
-        await streamFallback(finalContent);
-      }
-      fullContent = finalContent;
-      finalize(fullContent);
-    } else if (!completed) {
-      // 没有内容但需要完成
-      finalize(fullContent);
-    }
+    });
+
+    // 等待完成（无超时限制，由 session.idle 或 assistant.message 触发）
+    await completionPromise;
   } catch (error) {
     cleanup();
     onError?.(error instanceof Error ? error : new Error(String(error)));
