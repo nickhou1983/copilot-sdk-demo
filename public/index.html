@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Copilot SDK Demo - 对话助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Highlight.js for code highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <span class="logo-icon">🤖</span>
+          <span>Copilot SDK Demo</span>
+        </div>
+        <button id="new-chat-btn" class="new-chat-btn">
+          <span>➕</span>
+          <span>新建对话</span>
+        </button>
+      </div>
+      
+      <div class="sessions-list">
+        <div class="sessions-title">会话历史</div>
+        <div id="sessions-list">
+          <!-- 会话列表将动态渲染 -->
+        </div>
+      </div>
+      
+      <div class="sidebar-footer">
+        <div class="model-selector">
+          <label for="model-select">选择模型</label>
+          <select id="model-select">
+            <option value="gpt-4o">GPT-4o</option>
+          </select>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- 主内容区 -->
+    <main class="main-content">
+      <!-- 头部 -->
+      <header class="header">
+        <h1 id="header-title" class="header-title">Copilot SDK Demo</h1>
+        <div class="header-status">
+          <span id="status-dot" class="status-dot"></span>
+          <span id="status-text">连接中...</span>
+        </div>
+      </header>
+      
+      <!-- 聊天区域 -->
+      <div id="chat-container" class="chat-container">
+        <!-- 欢迎消息 -->
+        <div id="welcome-message" class="welcome-message">
+          <h2>👋 欢迎使用 Copilot SDK Demo</h2>
+          <p>这是一个基于 GitHub Copilot CLI SDK 构建的对话助手演示应用，展示了 SDK 的核心能力。</p>
+          
+          <div class="feature-grid">
+            <div class="feature-card" data-prompt="现在几点了？">
+              <div class="feature-icon">🕐</div>
+              <div class="feature-title">获取时间</div>
+              <div class="feature-desc">使用自定义工具获取当前时间</div>
+            </div>
+            
+            <div class="feature-card" data-prompt="帮我计算 sqrt(144) + pow(2, 10)">
+              <div class="feature-icon">🧮</div>
+              <div class="feature-title">数学计算</div>
+              <div class="feature-desc">调用计算器工具执行数学运算</div>
+            </div>
+            
+            <div class="feature-card" data-prompt="北京今天天气怎么样？">
+              <div class="feature-icon">🌤️</div>
+              <div class="feature-title">查询天气</div>
+              <div class="feature-desc">模拟天气查询工具演示</div>
+            </div>
+            
+            <div class="feature-card" data-prompt="帮我写一个快速排序的 Python 实现">
+              <div class="feature-icon">💻</div>
+              <div class="feature-title">代码生成</div>
+              <div class="feature-desc">生成代码并高亮显示</div>
+            </div>
+            
+            <div class="feature-card" data-prompt="">
+              <div class="feature-icon">📎</div>
+              <div class="feature-title">文件分析</div>
+              <div class="feature-desc">上传文件让 AI 分析内容</div>
+            </div>
+            
+            <div class="feature-card" data-prompt="帮我统计这段文字的字数：Hello World 你好世界">
+              <div class="feature-icon">📝</div>
+              <div class="feature-title">文本处理</div>
+              <div class="feature-desc">统计、转换文本内容</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 输入区域 -->
+      <div class="input-container">
+        <div class="input-wrapper">
+          <div id="attachments-preview" class="attachments-preview">
+            <!-- 附件预览将动态渲染 -->
+          </div>
+          <div class="input-row">
+            <div class="input-actions">
+              <button id="attach-btn" class="action-btn" title="添加附件">
+                📎
+              </button>
+            </div>
+            <textarea 
+              id="message-input" 
+              class="message-input" 
+              placeholder="输入消息，按 Enter 发送..."
+              rows="1"
+            ></textarea>
+            <button id="send-btn" class="send-btn" title="发送">
+              ➤
+            </button>
+          </div>
+        </div>
+        <input type="file" id="file-input" class="file-input" multiple>
+      </div>
+    </main>
+  </div>
+  
+  <!-- 依赖库 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
