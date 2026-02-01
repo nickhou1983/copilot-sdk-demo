@@ -1,0 +1,12 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^mkdir -p server client && npm init -y$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^npm install express cors @anthropic-ai/sdk dotenv && npm install -D vite @vitejs/plugin-react react react-dom concurrently nodemon$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
