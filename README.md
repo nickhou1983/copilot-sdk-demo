@@ -55,6 +55,33 @@ npm install
 npm run dev
 ```
 
+### Server 模式（可选）
+
+SDK 支持两种运行模式：
+
+1. **默认模式 (stdio)** - SDK 自动管理 CLI 进程生命周期
+2. **Server 模式** - 连接到外部已运行的 Copilot CLI 服务器
+
+使用 Server 模式需要先手动启动 CLI 服务器：
+
+```bash
+# 终端 1：启动 Copilot CLI 服务器
+copilot server --port 8080
+
+# 终端 2：设置环境变量并启动应用
+COPILOT_CLI_URL=localhost:8080 npm run dev
+```
+
+支持的环境变量：
+
+| 变量名 | 说明 | 示例 |
+|--------|------|------|
+| `COPILOT_CLI_URL` | CLI 服务器地址（启用 Server 模式） | `localhost:8080` |
+| `COPILOT_CLI_PATH` | 自定义 CLI 可执行文件路径 | `/usr/local/bin/copilot` |
+| `COPILOT_LOG_LEVEL` | 日志级别 | `debug` |
+
+也可以创建 `.env` 文件配置（参考 `.env.example`）。
+
 ### 访问应用
 
 打开浏览器访问 [http://localhost:3000](http://localhost:3000)

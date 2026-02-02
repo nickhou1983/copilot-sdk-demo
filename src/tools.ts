@@ -14,8 +14,9 @@ export const getCurrentTimeTool = defineTool("get_current_time", {
       .string()
       .optional()
       .describe("时区，例如 'Asia/Shanghai'、'America/New_York'，默认为系统时区"),
-  }),
-  handler: async ({ timezone }) => {
+  }) as any,
+  handler: async (args: unknown) => {
+    const { timezone } = args as { timezone?: string };
     const options: Intl.DateTimeFormatOptions = {
       year: "numeric",
       month: "2-digit",
@@ -45,8 +46,9 @@ export const calculatorTool = defineTool("calculate", {
     expression: z
       .string()
       .describe("数学表达式，例如 '2 + 3 * 4'、'sqrt(16)'、'pow(2, 10)'"),
-  }),
-  handler: async ({ expression }) => {
+  }) as any,
+  handler: async (args: unknown) => {
+    const { expression } = args as { expression: string };
     try {
       // 安全的数学表达式计算
       const safeExpression = expression
@@ -91,8 +93,9 @@ export const getWeatherTool = defineTool("get_weather", {
   description: "获取指定城市的天气信息（演示用，返回模拟数据）",
   parameters: z.object({
     city: z.string().describe("城市名称，例如 '北京'、'上海'、'New York'"),
-  }),
-  handler: async ({ city }) => {
+  }) as any,
+  handler: async (args: unknown) => {
+    const { city } = args as { city: string };
     // 模拟天气数据
     const weatherConditions = ["晴", "多云", "阴", "小雨", "大雨", "雪"];
     const condition = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
@@ -117,14 +120,15 @@ export const textProcessorTool = defineTool("process_text", {
     operation: z
       .enum(["count", "uppercase", "lowercase", "reverse"])
       .describe("操作类型：count(统计)、uppercase(大写)、lowercase(小写)、reverse(反转)"),
-  }),
-  handler: async ({ text, operation }) => {
+  }) as any,
+  handler: async (args: unknown) => {
+    const { text, operation } = args as { text: string; operation: "count" | "uppercase" | "lowercase" | "reverse" };
     switch (operation) {
       case "count":
         return {
           characters: text.length,
           charactersNoSpaces: text.replace(/\s/g, "").length,
-          words: text.split(/\s+/).filter((w) => w.length > 0).length,
+          words: text.split(/\s+/).filter((w: string) => w.length > 0).length,
           lines: text.split("\n").length,
         };
       case "uppercase":

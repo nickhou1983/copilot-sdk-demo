@@ -203,10 +203,7 @@ function handleSessionsList(data) {
     state.sessions = data.sessions;
     renderSessionsList();
     
-    // 如果没有当前会话，选择第一个或创建新的
-    if (!state.currentSessionId && state.sessions.length > 0) {
-      switchSession(state.sessions[0].sessionId);
-    }
+    // 保持首页欢迎内容可见，等待用户手动选择会话
   }
 }
 
@@ -238,7 +235,7 @@ function renderSessionsList() {
            onclick="switchSession('${session.sessionId}')">
         <span class="session-icon">💬</span>
         <div class="session-info">
-          <div class="session-name">${session.sessionId.substring(0, 20)}...</div>
+          <div class="session-name">${escapeHtml(session.title || session.sessionId.substring(0, 20) + "...")}</div>
           <div class="session-meta">${session.messageCount || 0} 条消息</div>
         </div>
         <button class="session-delete" onclick="deleteSession('${session.sessionId}', event)">🗑️</button>
