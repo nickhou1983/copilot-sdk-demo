@@ -12,6 +12,10 @@ const state = {
   isProcessing: false,
   selectedModel: "claude-opus-4.5",
   pendingMessage: null,
+  // 消息状态映射：按消息ID存储，防止竞态条件
+  messageStates: new Map(),
+  // 当前正在处理的消息ID
+  activeMessageId: null,
 };
 
 // ===== DOM 元素 =====
@@ -298,10 +302,20 @@ function handleMessageStart(data) {
   state.isProcessing = true;
   updateSendButton();
   
+  // 创建唯一的消息ID
+  const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  // 初始化该消息的状态
+  state.messageStates.set(messageId, {
+    content: "",
+    reasoningContent: "",
+    sessionId: data.sessionId,
+  });
+  state.activeMessageId = messageId;
+  
   // 创建助手消息占位符
-  const messageId = `msg-${Date.now()}`;
   const messageHtml = `
-    <div class="message assistant" id="${messageId}">
+    <div class="message assistant" id="${messageId}" data-session-id="${data.sessionId}">
       <div class="message-avatar">🤖</div>
       <div class="message-content">
         <div class="message-bubble">
@@ -322,7 +336,7 @@ function handleMessageStart(data) {
   elements.chatContainer.insertAdjacentHTML("beforeend", messageHtml);
   scrollToBottom();
   
-  // 存储消息 ID
+  // 保留旧的字段以兼容其他代码
   state.currentMessageId = messageId;
   state.currentMessageContent = "";
   state.currentReasoningContent = "";
@@ -331,13 +345,22 @@ function handleMessageStart(data) {
 function handleMessageDelta(data) {
   if (data.sessionId !== state.currentSessionId) return;
   
-  state.currentMessageContent += data.content;
+  // 使用当前活跃的消息ID
+  const messageId = state.activeMessageId;
+  if (!messageId) return;
   
-  const messageEl = document.getElementById(state.currentMessageId);
+  const msgState = state.messageStates.get(messageId);
+  if (!msgState || msgState.sessionId !== data.sessionId) return;
+  
+  msgState.content += data.content;
+  // 同步更新旧字段
+  state.currentMessageContent = msgState.content;
+  
+  const messageEl = document.getElementById(messageId);
   if (messageEl) {
     const contentEl = messageEl.querySelector(".assistant-content");
     if (contentEl) {
-      contentEl.innerHTML = renderMarkdown(state.currentMessageContent);
+      contentEl.innerHTML = renderMarkdown(msgState.content);
     }
     scrollToBottom();
   }
@@ -346,15 +369,22 @@ function handleMessageDelta(data) {
 function handleReasoningDelta(data) {
   if (data.sessionId !== state.currentSessionId) return;
 
-  state.currentReasoningContent += data.content;
+  const messageId = state.activeMessageId;
+  if (!messageId) return;
+  
+  const msgState = state.messageStates.get(messageId);
+  if (!msgState || msgState.sessionId !== data.sessionId) return;
+  
+  msgState.reasoningContent += data.content;
+  state.currentReasoningContent = msgState.reasoningContent;
 
-  const messageEl = document.getElementById(state.currentMessageId);
+  const messageEl = document.getElementById(messageId);
   if (messageEl) {
     const block = messageEl.querySelector(".reasoning-block");
     const content = messageEl.querySelector(".reasoning-content");
     if (block && content) {
       block.classList.remove("hidden");
-      content.textContent = state.currentReasoningContent;
+      content.textContent = msgState.reasoningContent;
     }
     scrollToBottom();
   }
@@ -365,6 +395,13 @@ function handleMessageComplete(data) {
   
   state.isProcessing = false;
   updateSendButton();
+  
+  // 清理消息状态
+  const messageId = state.activeMessageId;
+  if (messageId) {
+    state.messageStates.delete(messageId);
+    state.activeMessageId = null;
+  }
   
   // 保存到消息历史
   state.messages.push({
@@ -382,10 +419,17 @@ function handleMessageError(data) {
   state.isProcessing = false;
   updateSendButton();
   
-  const messageEl = document.getElementById(state.currentMessageId);
-  if (messageEl) {
-    const bubble = messageEl.querySelector(".message-bubble");
-    bubble.innerHTML = `<span style="color: var(--error-color)">❌ 错误: ${data.error}</span>`;
+  // 清理消息状态
+  const messageId = state.activeMessageId;
+  if (messageId) {
+    state.messageStates.delete(messageId);
+    state.activeMessageId = null;
+    
+    const messageEl = document.getElementById(messageId);
+    if (messageEl) {
+      const bubble = messageEl.querySelector(".message-bubble");
+      bubble.innerHTML = `<span style="color: var(--error-color)">❌ 错误: ${escapeHtml(data.error)}</span>`;
+    }
   }
 }
 

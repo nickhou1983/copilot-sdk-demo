@@ -38,14 +38,28 @@ const activeSessions = new Map<string, CopilotSession>();
 // 本地消息历史缓存（存储完整的消息内容）
 const messageHistoryCache = new Map<string, Array<{ role: string; content: string }>>();
 
+// 每个会话最大消息数量限制
+const MAX_MESSAGES_PER_SESSION = 100;
+
+// 默认消息超时时间（5分钟）
+const DEFAULT_MESSAGE_TIMEOUT = 5 * 60 * 1000;
+
 /**
  * 添加消息到本地缓存
+ * 自动裁剪超出限制的旧消息
  */
 function addMessageToCache(sessionId: string, role: string, content: string) {
   if (!messageHistoryCache.has(sessionId)) {
     messageHistoryCache.set(sessionId, []);
   }
-  messageHistoryCache.get(sessionId)!.push({ role, content });
+  const messages = messageHistoryCache.get(sessionId)!;
+  messages.push({ role, content });
+  
+  // 如果超出限制，移除最旧的消息（保留系统消息）
+  if (messages.length > MAX_MESSAGES_PER_SESSION) {
+    const excess = messages.length - MAX_MESSAGES_PER_SESSION;
+    messages.splice(0, excess);
+  }
 }
 
 /**
@@ -338,10 +352,30 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
 
   // 存储取消订阅函数
   const unsubscribers: Array<() => void> = [];
+  let cleanupCalled = false;
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
-  // 清理所有监听器的函数
+  // 清理所有监听器的函数（确保只执行一次）
   const cleanup = () => {
-    unsubscribers.forEach((unsub) => unsub());
+    if (cleanupCalled) return;
+    cleanupCalled = true;
+    
+    // 清除超时计时器
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = null;
+    }
+    
+    // 安全地取消订阅所有监听器
+    unsubscribers.forEach((unsub) => {
+      try {
+        if (typeof unsub === 'function') {
+          unsub();
+        }
+      } catch (e) {
+        // 忽略取消订阅错误
+      }
+    });
     unsubscribers.length = 0;
   };
 
@@ -458,14 +492,31 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
       })
     );
 
-    // 创建完成 Promise
-    const completionPromise = new Promise<void>((resolve) => {
+    // 创建完成 Promise（带超时保护）
+    const completionPromise = new Promise<void>((resolve, reject) => {
       const checkComplete = setInterval(() => {
         if (completed) {
           clearInterval(checkComplete);
           resolve();
         }
       }, 100);
+      
+      // 超时保护：防止无限等待
+      timeoutHandle = setTimeout(() => {
+        clearInterval(checkComplete);
+        if (!completed) {
+          // 如果有部分内容则正常完成，否则报超时错误
+          if (fullContent.length > 0) {
+            finalize(fullContent);
+            resolve();
+          } else {
+            cleanup();
+            reject(new Error('消息响应超时'));
+          }
+        } else {
+          resolve();
+        }
+      }, DEFAULT_MESSAGE_TIMEOUT);
     });
 
     // 发送消息（非阻塞）
@@ -474,7 +525,7 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
       attachments,
     });
 
-    // 等待完成（无超时限制，由 session.idle 或 assistant.message 触发）
+    // 等待完成（有超时保护）
     await completionPromise;
   } catch (error) {
     cleanup();
