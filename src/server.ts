@@ -154,18 +154,20 @@ io.on("connection", (socket) => {
               content,
             });
           },
-          onToolCall: (toolName, args) => {
+          onToolCall: (toolName, args, toolCallId) => {
             socket.emit("tool-call", {
               sessionId: data.sessionId,
               toolName,
               args,
+              toolCallId,
             });
           },
-          onToolResult: (toolName, result) => {
+          onToolResult: (toolName, result, toolCallId) => {
             socket.emit("tool-result", {
               sessionId: data.sessionId,
               toolName,
               result,
+              toolCallId,
             });
           },
           onComplete: (fullContent) => {

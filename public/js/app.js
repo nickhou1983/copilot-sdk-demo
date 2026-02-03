@@ -435,13 +435,13 @@ function handleMessageError(data) {
 
 function handleToolCall(data) {
   if (data.sessionId !== state.currentSessionId) return;
-  
+
   const messageEl = document.getElementById(state.currentMessageId);
   if (messageEl) {
     const toolsContainer = messageEl.querySelector(".tools-container");
     if (toolsContainer) {
       const toolHtml = `
-        <div class="tool-call" id="tool-${data.toolName}-${Date.now()}">
+        <div class="tool-call" id="tool-call-${data.toolCallId}">
           <div class="tool-call-header">🔧 调用工具: ${data.toolName}</div>
           <div class="tool-call-args">${formatToolArgs(data.args)}</div>
           <div class="tool-call-status">⏳ 执行中...</div>
@@ -465,14 +465,13 @@ function formatToolArgs(args) {
 
 function handleToolResult(data) {
   if (data.sessionId !== state.currentSessionId) return;
-  
+
   const messageEl = document.getElementById(state.currentMessageId);
   if (messageEl) {
-    // 更新最后一个工具调用的状态
-    const toolCalls = messageEl.querySelectorAll(".tool-call");
-    const lastToolCall = toolCalls[toolCalls.length - 1];
-    if (lastToolCall) {
-      const statusEl = lastToolCall.querySelector(".tool-call-status");
+    // 使用 toolCallId 精确匹配对应的工具调用
+    const toolCallEl = messageEl.querySelector(`#tool-call-${data.toolCallId}`);
+    if (toolCallEl) {
+      const statusEl = toolCallEl.querySelector(".tool-call-status");
       if (statusEl) {
         const resultPreview = formatToolResult(data.result);
         statusEl.outerHTML = `

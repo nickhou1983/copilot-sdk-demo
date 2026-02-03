@@ -330,8 +330,8 @@ export interface SendMessageOptions {
   }>;
   onDelta?: (content: string) => void;
   onReasoningDelta?: (content: string) => void;
-  onToolCall?: (toolName: string, args: unknown) => void;
-  onToolResult?: (toolName: string, result: unknown) => void;
+  onToolCall?: (toolName: string, args: unknown, toolCallId: string) => void;
+  onToolResult?: (toolName: string, result: unknown, toolCallId: string) => void;
   onComplete?: (fullContent: string) => void;
   onError?: (error: Error) => void;
 }
@@ -388,19 +388,21 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
     let fullContent = "";
     let hasDelta = false;
     let completed = false;
+    let pendingToolCalls = 0; // 追踪正在执行的工具数量
     const toolNameByCallId = new Map<string, string>();
 
     const finalize = (content: string) => {
       if (completed) return;
       completed = true;
-      
+
       // 将助手回复保存到本地缓存
       if (content.trim().length > 0) {
         addMessageToCache(sessionId, "assistant", content);
       }
-      
+
       onComplete?.(content);
-      cleanup();
+      // 延迟执行 cleanup，确保队列中的事件都能被处理
+      setTimeout(() => cleanup(), 100);
     };
 
     const streamFallback = async (content: string) => {
@@ -436,15 +438,17 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
 
     unsubscribers.push(
       session.on("tool.execution_start", (event) => {
+        pendingToolCalls++; // 工具开始执行，计数加1
         toolNameByCallId.set(event.data.toolCallId, event.data.toolName);
-        onToolCall?.(event.data.toolName, event.data.arguments);
+        onToolCall?.(event.data.toolName, event.data.arguments, event.data.toolCallId);
       })
     );
 
     unsubscribers.push(
       session.on("tool.execution_complete", (event) => {
+        pendingToolCalls = Math.max(0, pendingToolCalls - 1); // 工具执行完成，计数减1
         const name = toolNameByCallId.get(event.data.toolCallId) || event.data.toolCallId;
-        onToolResult?.(name, event.data.result);
+        onToolResult?.(name, event.data.result, event.data.toolCallId);
       })
     );
 
@@ -452,12 +456,21 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
       session.on("assistant.message", (event) => {
         const content = event.data.content || "";
         const toolRequests = (event.data as { toolRequests?: unknown[] }).toolRequests;
-        
+
         // 如果有工具请求但没有内容，说明模型正在请求工具调用，不要完成消息
         if (toolRequests && toolRequests.length > 0 && content.length === 0) {
           return;
         }
-        
+
+        // 如果有工具正在执行，不要完成消息
+        if (pendingToolCalls > 0) {
+          // 但仍然要处理内容
+          if (content.length > 0 && fullContent.length === 0) {
+            fullContent = content;
+          }
+          return;
+        }
+
         if (!hasDelta && content.length > 0) {
           // 如果没有收到增量事件，回退为"模拟流式"输出
           fullContent = content;
@@ -486,7 +499,8 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
     // 备用完成信号：当 assistant.message 没有触发时（如只有 reasoning）
     unsubscribers.push(
       session.on("session.idle", () => {
-        if (!completed) {
+        // 如果有工具正在执行，不要完成消息
+        if (!completed && pendingToolCalls === 0) {
           finalize(fullContent);
         }
       })
