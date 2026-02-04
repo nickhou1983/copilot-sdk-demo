@@ -16,7 +16,12 @@ const state = {
   messageStates: new Map(),
   // 当前正在处理的消息ID
   activeMessageId: null,
+  // 当前 Agent ID
+  currentAgentId: null,
 };
+
+// 将 state 暴露到全局，供其他模块访问
+window.state = state;
 
 // ===== DOM 元素 =====
 const elements = {
@@ -39,6 +44,14 @@ document.addEventListener("DOMContentLoaded", () => {
   initSocket();
   initEventListeners();
   loadModels();
+  
+  // 初始化 Agent 和 Tool 管理器
+  if (window.agentManager) {
+    window.agentManager.init(state.socket);
+  }
+  if (window.toolManager) {
+    window.toolManager.init(state.socket);
+  }
 });
 
 function initElements() {
@@ -143,9 +156,12 @@ function refreshSessions() {
 
 function createNewSession() {
   const sessionId = `session-${Date.now()}`;
+  // 获取当前选中的 Agent
+  const agentId = window.agentManager?.getCurrentAgentId();
   state.socket.emit("create-session", {
     sessionId,
     model: state.selectedModel,
+    agentId,
   });
 }
 
@@ -284,10 +300,13 @@ function sendMessage() {
 }
 
 function sendMessageToSession(sessionId, prompt, attachments, model) {
+  // 获取当前选中的 Agent
+  const agentId = window.agentManager?.getCurrentAgentId();
   state.socket.emit("send-message", {
     sessionId,
     prompt,
     model,
+    agentId,
     attachments: (attachments || []).map((a) => ({
       type: "file",
       path: a.path,
@@ -671,3 +690,48 @@ function escapeHtml(text) {
 window.switchSession = switchSession;
 window.deleteSession = deleteSession;
 window.removeAttachment = removeAttachment;
+
+// ===== 模态框辅助函数 =====
+function openSettingsModal() {
+  document.getElementById('settings-modal').classList.add('show');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settings-modal').classList.remove('show');
+}
+
+function switchTab(tabId) {
+  // 移除所有 tab 的 active 状态
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+  
+  // 激活选中的 tab
+  const tab = document.getElementById(tabId);
+  if (tab) {
+    tab.classList.add('active');
+    // 找到对应的按钮并激活
+    const btnIndex = ['agents-tab', 'tools-tab', 'groups-tab'].indexOf(tabId);
+    const btns = document.querySelectorAll('.modal-tabs .tab-btn');
+    if (btns[btnIndex]) {
+      btns[btnIndex].classList.add('active');
+    }
+  }
+  
+  // 刷新工具列表
+  if (tabId === 'tools-tab') {
+    state.socket.emit('list-tools');
+  } else if (tabId === 'groups-tab') {
+    state.socket.emit('list-tool-groups');
+  }
+}
+
+// 点击模态框外部关闭
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal')) {
+    e.target.classList.remove('show');
+  }
+});
+
+window.openSettingsModal = openSettingsModal;
+window.closeSettingsModal = closeSettingsModal;
+window.switchTab = switchTab;

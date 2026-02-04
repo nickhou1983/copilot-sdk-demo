@@ -1,5 +1,14 @@
 import { CopilotClient, CopilotSession } from "@github/copilot-sdk";
-import { allTools } from "./tools.js";
+import { getAllTools } from "./tools/index.js";
+import { getToolsForAgent, initializeToolRegistry } from "./services/toolRegistry.js";
+import {
+  getAgentById,
+  getDefaultAgentConfig,
+  injectSystemPrompt,
+  resolveAgent,
+} from "./services/agentManager.js";
+import { initializeStorage } from "./services/storage.js";
+import type { AgentConfig } from "./types/agent.js";
 
 /**
  * Copilot 客户端封装
@@ -34,6 +43,12 @@ let clientInstance: CopilotClient | null = null;
 
 // 活跃会话缓存
 const activeSessions = new Map<string, CopilotSession>();
+
+// 会话关联的 Agent ID 缓存
+const sessionAgentMap = new Map<string, string>();
+
+// 会话首条消息标记（用于判断是否注入 system prompt）
+const sessionFirstMessage = new Map<string, boolean>();
 
 // 本地消息历史缓存（存储完整的消息内容）
 const messageHistoryCache = new Map<string, Array<{ role: string; content: string }>>();
@@ -97,6 +112,17 @@ function getClientOptions(): Record<string, unknown> {
 }
 
 /**
+ * 初始化 Copilot 服务（包括存储和工具注册）
+ */
+export async function initializeCopilot(): Promise<void> {
+  // 初始化存储服务
+  initializeStorage();
+  // 初始化工具注册中心
+  initializeToolRegistry();
+  console.log("✅ Agent 和 Tool 系统已初始化");
+}
+
+/**
  * 获取或创建 CopilotClient 实例
  */
 export async function getClient(): Promise<CopilotClient> {
@@ -132,33 +158,75 @@ export async function stopClient(): Promise<void> {
 
 /**
  * 创建新会话
+ * @param sessionId - 可选的会话 ID
+ * @param model - 模型 ID
+ * @param agentId - 可选的 Agent ID，不指定则使用默认 Agent
  */
 export async function createSession(
   sessionId?: string,
-  model: ModelId = "claude-opus-4.5"
+  model: ModelId = "claude-opus-4.5",
+  agentId?: string
 ): Promise<CopilotSession> {
   const client = await getClient();
+
+  // 获取 Agent 配置和工具
+  let tools: unknown[];
+  let resolvedAgentId: string;
+
+  if (agentId) {
+    const agent = resolveAgent(agentId);
+    if (agent) {
+      tools = agent.tools;
+      resolvedAgentId = agent.id;
+      // 如果 Agent 有首选模型，使用它
+      if (agent.preferredModel && !model) {
+        model = agent.preferredModel as ModelId;
+      }
+    } else {
+      // Agent 不存在，使用默认
+      const defaultAgent = getDefaultAgentConfig();
+      tools = getToolsForAgent(
+        defaultAgent.enabledBuiltinTools,
+        defaultAgent.enabledCustomTools,
+        defaultAgent.toolGroupIds
+      );
+      resolvedAgentId = defaultAgent.id;
+    }
+  } else {
+    // 使用默认 Agent
+    const defaultAgent = getDefaultAgentConfig();
+    tools = getToolsForAgent(
+      defaultAgent.enabledBuiltinTools,
+      defaultAgent.enabledCustomTools,
+      defaultAgent.toolGroupIds
+    );
+    resolvedAgentId = defaultAgent.id;
+  }
 
   const session = await client.createSession({
     sessionId,
     model,
     streaming: true,
-    tools: allTools,
+    tools: tools as any,
   });
 
   const id = sessionId || session.sessionId;
   activeSessions.set(id, session);
+  sessionAgentMap.set(id, resolvedAgentId);
+  sessionFirstMessage.set(id, true); // 标记为首条消息
 
-  console.log(`📝 会话已创建: ${id}, 模型: ${model}`);
+  console.log(`📝 会话已创建: ${id}, 模型: ${model}, Agent: ${resolvedAgentId}`);
   return session;
 }
 
 /**
  * 获取或恢复会话
+ * @param agentId - 可选的 Agent ID（仅在创建新会话时使用）
  */
 export async function getOrCreateSession(
   sessionId: string,
-  model: ModelId = "claude-opus-4.5"
+  model: ModelId = "claude-opus-4.5",
+  agentId?: string
 ): Promise<CopilotSession> {
   // 检查缓存
   if (activeSessions.has(sessionId)) {
@@ -167,13 +235,29 @@ export async function getOrCreateSession(
 
   const client = await getClient();
 
+  // 获取工具列表（使用会话关联的 Agent 或默认 Agent）
+  const existingAgentId = sessionAgentMap.get(sessionId) || agentId;
+  let tools: unknown[];
+
+  if (existingAgentId) {
+    const agent = resolveAgent(existingAgentId);
+    tools = agent ? agent.tools : getAllTools();
+  } else {
+    const defaultAgent = getDefaultAgentConfig();
+    tools = getToolsForAgent(
+      defaultAgent.enabledBuiltinTools,
+      defaultAgent.enabledCustomTools,
+      defaultAgent.toolGroupIds
+    );
+  }
+
   // 尝试恢复已存在的会话
   try {
     const sessions = await client.listSessions();
     if (sessions.some((s) => s.sessionId === sessionId)) {
       const session = await client.resumeSession(sessionId, {
         streaming: true,
-        tools: allTools,
+        tools: tools as any,
       });
       activeSessions.set(sessionId, session);
       console.log(`🔄 会话已恢复: ${sessionId}`);
@@ -183,7 +267,7 @@ export async function getOrCreateSession(
     // 会话不存在，创建新的
   }
 
-  return createSession(sessionId, model);
+  return createSession(sessionId, model, agentId);
 }
 
 /**
@@ -240,8 +324,10 @@ export async function deleteSession(sessionId: string): Promise<void> {
     activeSessions.delete(sessionId);
   }
   
-  // 清理本地消息缓存
+  // 清理本地消息缓存和 Agent 关联
   messageHistoryCache.delete(sessionId);
+  sessionAgentMap.delete(sessionId);
+  sessionFirstMessage.delete(sessionId);
 
   await client.deleteSession(sessionId);
   console.log(`🗑️ 会话已删除: ${sessionId}`);
@@ -323,6 +409,7 @@ export interface SendMessageOptions {
   sessionId: string;
   prompt: string;
   model?: ModelId;
+  agentId?: string; // 可选的 Agent ID（仅在创建新会话时使用）
   attachments?: Array<{
     type: "file" | "directory";
     path: string;
@@ -341,6 +428,7 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
     sessionId,
     prompt,
     model = "claude-opus-4.5",
+    agentId,
     attachments,
     onDelta,
     onReasoningDelta,
@@ -349,6 +437,18 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
     onComplete,
     onError,
   } = options;
+
+  // 检查是否需要注入 system prompt
+  const isFirstMessage = sessionFirstMessage.get(sessionId) ?? true;
+  const effectiveAgentId = sessionAgentMap.get(sessionId) || agentId;
+  
+  // 处理消息：如果是首条消息且 Agent 有 system prompt，则注入
+  let finalPrompt = prompt;
+  if (isFirstMessage && effectiveAgentId) {
+    finalPrompt = injectSystemPrompt(prompt, effectiveAgentId);
+    // 标记已不是首条消息
+    sessionFirstMessage.set(sessionId, false);
+  }
 
   // 存储取消订阅函数
   const unsubscribers: Array<() => void> = [];
@@ -380,9 +480,9 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
   };
 
   try {
-    const session = await getOrCreateSession(sessionId, model);
+    const session = await getOrCreateSession(sessionId, model, agentId);
 
-    // 将用户消息保存到本地缓存
+    // 将用户消息保存到本地缓存（保存原始消息，不含 system prompt）
     addMessageToCache(sessionId, "user", prompt);
 
     let fullContent = "";
@@ -454,7 +554,7 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
 
     // 监听工具执行错误事件，确保计数器正确减少
     unsubscribers.push(
-      session.on("tool.execution_error", (event) => {
+      (session.on as any)("tool.execution_error", (event: any) => {
         pendingToolCalls = Math.max(0, pendingToolCalls - 1);
         const name = toolNameByCallId.get(event.data.toolCallId) || event.data.toolCallId;
         console.error(`⚠️ 工具执行错误 [${name}]:`, event.data.error);
@@ -546,7 +646,7 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
 
     // 发送消息（非阻塞）
     await session.send({
-      prompt,
+      prompt: finalPrompt,
       attachments,
     });
 
@@ -567,4 +667,20 @@ export async function abortSession(sessionId: string): Promise<void> {
     await session.abort();
     console.log(`⏹️ 会话已中止: ${sessionId}`);
   }
+}
+
+/**
+ * 获取会话关联的 Agent ID
+ */
+export function getSessionAgentId(sessionId: string): string | undefined {
+  return sessionAgentMap.get(sessionId);
+}
+
+/**
+ * 设置会话关联的 Agent ID
+ */
+export function setSessionAgent(sessionId: string, agentId: string): void {
+  sessionAgentMap.set(sessionId, agentId);
+  // 重置首条消息标记，以便切换 Agent 后注入新的 system prompt
+  sessionFirstMessage.set(sessionId, true);
 }
