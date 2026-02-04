@@ -473,13 +473,25 @@ function handleToolResult(data) {
     if (toolCallEl) {
       const statusEl = toolCallEl.querySelector(".tool-call-status");
       if (statusEl) {
+        // 检查是否是错误结果
+        const isError = data.result && data.result.error;
         const resultPreview = formatToolResult(data.result);
-        statusEl.outerHTML = `
-          <div class="tool-call-result">
-            <span class="tool-result-label">✅ 完成</span>
-            <span class="tool-result-preview">${resultPreview}</span>
-          </div>
-        `;
+        
+        if (isError) {
+          statusEl.outerHTML = `
+            <div class="tool-call-result tool-call-error">
+              <span class="tool-result-label">❌ 失败</span>
+              <span class="tool-result-preview">${escapeHtml(data.result.error)}</span>
+            </div>
+          `;
+        } else {
+          statusEl.outerHTML = `
+            <div class="tool-call-result">
+              <span class="tool-result-label">✅ 完成</span>
+              <span class="tool-result-preview">${resultPreview}</span>
+            </div>
+          `;
+        }
       }
     }
     scrollToBottom();

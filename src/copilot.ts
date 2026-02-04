@@ -452,6 +452,17 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
       })
     );
 
+    // 监听工具执行错误事件，确保计数器正确减少
+    unsubscribers.push(
+      session.on("tool.execution_error", (event) => {
+        pendingToolCalls = Math.max(0, pendingToolCalls - 1);
+        const name = toolNameByCallId.get(event.data.toolCallId) || event.data.toolCallId;
+        console.error(`⚠️ 工具执行错误 [${name}]:`, event.data.error);
+        // 通知前端工具执行失败
+        onToolResult?.(name, { error: event.data.error || "工具执行失败" }, event.data.toolCallId);
+      })
+    );
+
     unsubscribers.push(
       session.on("assistant.message", (event) => {
         const content = event.data.content || "";
