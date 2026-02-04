@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "groups": [
+    {
+      "id": "default",
+      "name": "默认工具组",
+      "description": "包含所有内置工具",
+      "toolIds": [
+        "get_current_time",
+        "calculate",
+        "get_weather",
+        "process_text"
+      ],
+      "icon": "🔧",
+      "createdAt": "2026-02-04T07:16:40.097Z",
+      "updatedAt": "2026-02-04T07:16:40.097Z"
+    },
+    {
+      "id": "utility",
+      "name": "实用工具",
+      "description": "日常实用工具",
+      "toolIds": [
+        "get_current_time",
+        "calculate"
+      ],
+      "icon": "⚙️",
+      "createdAt": "2026-02-04T07:16:40.097Z",
+      "updatedAt": "2026-02-04T07:16:40.097Z"
+    }
+  ]
+}

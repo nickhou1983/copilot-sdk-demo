@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "agents": [
+    {
+      "id": "default",
+      "name": "通用助手",
+      "description": "默认的通用 AI 助手",
+      "systemPrompt": "",
+      "toolGroupIds": [
+        "default"
+      ],
+      "enabledBuiltinTools": [
+        "get_current_time",
+        "calculate",
+        "get_weather",
+        "process_text"
+      ],
+      "enabledCustomTools": [],
+      "icon": "🤖",
+      "color": "#6366f1",
+      "isDefault": true,
+      "createdAt": "2026-02-04T07:16:40.097Z",
+      "updatedAt": "2026-02-04T07:16:40.097Z"
+    },
+    {
+      "id": "coder",
+      "name": "代码助手",
+      "description": "专注于编程和代码相关任务的助手",
+      "systemPrompt": "你是一个专业的编程助手。请遵循以下原则：\n1. 提供清晰、可维护的代码\n2. 解释代码的工作原理\n3. 遵循最佳实践和设计模式\n4. 考虑性能和安全性\n5. 使用适当的错误处理",
+      "toolGroupIds": [
+        "default"
+      ],
+      "enabledBuiltinTools": [
+        "calculate"
+      ],
+      "enabledCustomTools": [],
+      "preferredModel": "claude-sonnet-4",
+      "icon": "👨‍💻",
+      "color": "#10b981",
+      "createdAt": "2026-02-04T07:16:40.097Z",
+      "updatedAt": "2026-02-04T07:16:40.097Z"
+    },
+    {
+      "id": "translator",
+      "name": "翻译助手",
+      "description": "专业的多语言翻译助手",
+      "systemPrompt": "你是一个专业的翻译助手。请遵循以下原则：\n1. 保持原文的意思和语气\n2. 使用自然流畅的目标语言表达\n3. 注意文化差异和习语翻译\n4. 对于专业术语，提供解释\n5. 如果原文有歧义，说明并提供多种翻译",
+      "toolGroupIds": [],
+      "enabledBuiltinTools": [
+        "process_text"
+      ],
+      "enabledCustomTools": [],
+      "preferredModel": "gpt-4o",
+      "icon": "🌐",
+      "color": "#f59e0b",
+      "createdAt": "2026-02-04T07:16:40.097Z",
+      "updatedAt": "2026-02-04T07:16:40.097Z"
+    }
+  ]
+}
