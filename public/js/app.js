@@ -129,6 +129,9 @@ function initEventListeners() {
   });
   elements.fileInput.addEventListener("change", handleFileSelect);
 
+  // 粘贴图片
+  elements.messageInput.addEventListener("paste", handlePaste);
+
   // 新建会话
   elements.newChatBtn.addEventListener("click", createNewSession);
 
@@ -591,6 +594,39 @@ async function handleFileSelect(e) {
   const files = Array.from(e.target.files);
   if (files.length === 0) return;
 
+  await uploadFiles(files);
+
+  // 清空文件输入
+  e.target.value = "";
+}
+
+// 处理粘贴事件
+async function handlePaste(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  const imageFiles = [];
+  for (const item of items) {
+    if (item.type.startsWith("image/")) {
+      const blob = item.getAsFile();
+      if (blob) {
+        // 为粘贴的图片生成文件名
+        const ext = item.type.split("/")[1] || "png";
+        const fileName = `pasted-image-${Date.now()}.${ext}`;
+        const file = new File([blob], fileName, { type: item.type });
+        imageFiles.push(file);
+      }
+    }
+  }
+
+  if (imageFiles.length > 0) {
+    e.preventDefault();
+    await uploadFiles(imageFiles);
+  }
+}
+
+// 上传文件到服务器
+async function uploadFiles(files) {
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
 
@@ -610,21 +646,27 @@ async function handleFileSelect(e) {
   } catch (error) {
     showError("上传失败: " + error.message);
   }
-
-  // 清空文件输入
-  e.target.value = "";
 }
 
 function renderAttachments() {
   elements.attachmentsPreview.innerHTML = state.attachments
-    .map(
-      (a, i) => `
-      <div class="attachment-preview">
-        <span>📎 ${a.originalName}</span>
-        <button class="remove-btn" onclick="removeAttachment(${i})">×</button>
-      </div>
-    `
-    )
+    .map((a, i) => {
+      const isImage = a.mimetype?.startsWith("image/");
+      if (isImage) {
+        return `
+          <div class="attachment-preview attachment-image">
+            <img src="/uploads/${a.filename}" alt="${a.originalName}" />
+            <button class="remove-btn" onclick="removeAttachment(${i})" title="移除">×</button>
+          </div>
+        `;
+      }
+      return `
+        <div class="attachment-preview">
+          <span>📎 ${a.originalName}</span>
+          <button class="remove-btn" onclick="removeAttachment(${i})">×</button>
+        </div>
+      `;
+    })
     .join("");
 }
 
