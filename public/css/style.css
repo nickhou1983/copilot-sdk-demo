@@ -1506,3 +1506,126 @@ body {
 .tool-call-error .tool-result-preview {
   color: var(--error-color);
 }
+
+/* ===== 用户输入请求对话框 ===== */
+.user-input-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+}
+
+.user-input-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.user-input-dialog {
+  background-color: var(--bg-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 90%;
+  max-width: 480px;
+  padding: 24px;
+  transform: scale(0.95) translateY(10px);
+  transition: transform 0.2s ease;
+}
+
+.user-input-overlay.show .user-input-dialog {
+  transform: scale(1) translateY(0);
+}
+
+.user-input-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.user-input-icon {
+  font-size: 20px;
+}
+
+.user-input-question {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--primary-color);
+}
+
+.user-input-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.user-input-choice-btn {
+  padding: 10px 16px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition);
+}
+
+.user-input-choice-btn:hover {
+  border-color: var(--primary-color);
+  background-color: rgba(9, 105, 218, 0.08);
+}
+
+.user-input-freeform {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.user-input-text {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 40px;
+  transition: var(--transition);
+}
+
+.user-input-text:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
+}
+
+.user-input-submit {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 20px;
+}
+
+.user-input-divider {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 8px 0;
+}

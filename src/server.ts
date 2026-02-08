@@ -15,7 +15,10 @@ import {
   initializeCopilot,
   getSessionAgentId,
   setSessionAgent,
-  AVAILABLE_MODELS,
+  listAvailableModels,
+  setUserInputHandler,
+  clearUserInputHandler,
+  FALLBACK_MODELS,
   type ModelId,
 } from "./copilot.js";
 
@@ -77,12 +80,14 @@ app.use(express.static(path.join(process.cwd(), "public")));
 // API 路由
 app.use("/api/upload", uploadRouter);
 
-// 获取可用模型列表
-app.get("/api/models", (_req, res) => {
-  res.json({
-    success: true,
-    models: AVAILABLE_MODELS,
-  });
+// 获取可用模型列表（动态获取）
+app.get("/api/models", async (_req, res) => {
+  try {
+    const models = await listAvailableModels();
+    res.json({ success: true, models });
+  } catch (error) {
+    res.json({ success: true, models: FALLBACK_MODELS });
+  }
 });
 
 // 初始化 Copilot 服务并启动服务器
@@ -458,6 +463,25 @@ async function startServer() {
         sessionId: data.sessionId,
       });
 
+      // 注册用户输入请求处理器：当 SDK 需要用户输入时，转发到前端
+      setUserInputHandler(data.sessionId, (request) => {
+        return new Promise((resolve) => {
+          socket.emit("user-input-request", {
+            sessionId: data.sessionId,
+            question: request.question,
+            choices: request.choices,
+            allowFreeform: request.allowFreeform ?? true,
+          });
+          // 监听用户的回答
+          socket.once(`user-input-response:${data.sessionId}`, (response: { answer: string; wasFreeform?: boolean }) => {
+            resolve({
+              answer: response.answer,
+              wasFreeform: response.wasFreeform ?? true,
+            });
+          });
+        });
+      });
+
       // 使用 Promise 包装，等待真正完成
       try {
         await sendMessage({
@@ -511,6 +535,8 @@ async function startServer() {
         });
       } catch (error) {
         console.error(`❌ sendMessage 异常: [${data.sessionId}]`, error);
+      } finally {
+        clearUserInputHandler(data.sessionId);
       }
     }
   );

@@ -99,6 +99,9 @@ function initSocket() {
   // 工具事件
   state.socket.on("tool-call", handleToolCall);
   state.socket.on("tool-result", handleToolResult);
+
+  // 用户输入请求事件
+  state.socket.on("user-input-request", handleUserInputRequest);
 }
 
 function updateConnectionStatus(connected) {
@@ -726,6 +729,100 @@ function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
+}
+
+// ===== 用户输入请求处理 =====
+function handleUserInputRequest(data) {
+  if (data.sessionId !== state.currentSessionId) return;
+
+  const overlay = document.getElementById("user-input-dialog");
+  const questionEl = document.getElementById("user-input-question");
+  const choicesEl = document.getElementById("user-input-choices");
+  const freeformEl = document.getElementById("user-input-freeform");
+  const textInput = document.getElementById("user-input-text");
+  const submitBtn = document.getElementById("user-input-submit");
+
+  // Display question
+  questionEl.textContent = data.question;
+
+  // Render choices if provided
+  choicesEl.innerHTML = "";
+  if (data.choices && data.choices.length > 0) {
+    data.choices.forEach((choice) => {
+      const btn = document.createElement("button");
+      btn.className = "user-input-choice-btn";
+      btn.textContent = choice;
+      btn.onclick = () => {
+        submitUserInput(data.sessionId, choice, false);
+      };
+      choicesEl.appendChild(btn);
+    });
+
+    // Show divider if freeform is also allowed
+    if (data.allowFreeform !== false) {
+      const divider = document.createElement("div");
+      divider.className = "user-input-divider";
+      divider.textContent = "— 或输入自定义回答 —";
+      choicesEl.appendChild(divider);
+    }
+  }
+
+  // Show/hide freeform input
+  if (data.allowFreeform !== false) {
+    freeformEl.style.display = "flex";
+    textInput.value = "";
+    textInput.focus();
+  } else {
+    freeformEl.style.display = "none";
+  }
+
+  // Handle freeform submit
+  const onSubmit = () => {
+    const answer = textInput.value.trim();
+    if (answer) {
+      submitUserInput(data.sessionId, answer, true);
+    }
+  };
+  submitBtn.onclick = onSubmit;
+  textInput.onkeydown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit();
+    }
+  };
+
+  // Show dialog
+  overlay.classList.add("show");
+}
+
+function submitUserInput(sessionId, answer, wasFreeform) {
+  const overlay = document.getElementById("user-input-dialog");
+  overlay.classList.remove("show");
+
+  state.socket.emit(`user-input-response:${sessionId}`, {
+    answer,
+    wasFreeform,
+  });
+
+  // Show the interaction in chat as a visual indicator
+  const messageEl = document.getElementById(state.activeMessageId);
+  if (messageEl) {
+    const toolsContainer = messageEl.querySelector(".tools-container");
+    if (toolsContainer) {
+      const inputHtml = `
+        <div class="tool-call">
+          <div class="tool-call-header">🙋 AI 询问</div>
+          <div class="tool-call-args">${escapeHtml(document.getElementById("user-input-question").textContent)}</div>
+          <div class="tool-call-result">
+            <span class="tool-result-label">💬 回答</span>
+            <span class="tool-result-preview">${escapeHtml(answer)}</span>
+          </div>
+        </div>
+      `;
+      toolsContainer.insertAdjacentHTML("beforeend", inputHtml);
+      scrollToBottom();
+    }
+  }
 }
 
 // ===== 暴露到全局 =====

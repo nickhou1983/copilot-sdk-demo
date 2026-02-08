@@ -25,8 +25,8 @@ import type { AgentConfig } from "./types/agent.js";
  * - COPILOT_LOG_LEVEL: 日志级别 ("none" | "error" | "warning" | "info" | "debug" | "all")
  */
 
-// 支持的模型列表
-export const AVAILABLE_MODELS = [
+// 静态模型列表（作为动态列表不可用时的 fallback）
+export const FALLBACK_MODELS = [
   { id: "claude-opus-4.5", name: "Claude Opus 4.5", description: "Anthropic Claude Opus 4.5" },
   { id: "claude-sonnet-4.5", name: "Claude Sonnet 4.5", description: "Anthropic Claude Sonnet 4.5" },
   { id: "gpt-5.2-codex", name: "GPT-5.2-Codex", description: "OpenAI GPT-5.2-Codex" },
@@ -36,7 +36,7 @@ export const AVAILABLE_MODELS = [
   { id: "o3-mini", name: "o3-mini", description: "OpenAI o3-mini" },
 ] as const;
 
-export type ModelId = (typeof AVAILABLE_MODELS)[number]["id"];
+export type ModelId = string;
 
 // 客户端单例
 let clientInstance: CopilotClient | null = null;
@@ -52,6 +52,38 @@ const sessionFirstMessage = new Map<string, boolean>();
 
 // 本地消息历史缓存（存储完整的消息内容）
 const messageHistoryCache = new Map<string, Array<{ role: string; content: string }>>();
+
+// Per-session user input request handlers (set by server.ts when sending messages)
+const userInputHandlers = new Map<string, (request: UserInputRequest) => Promise<UserInputResponse>>();
+
+export interface UserInputRequest {
+  question: string;
+  choices?: string[];
+  allowFreeform?: boolean;
+}
+
+export interface UserInputResponse {
+  answer: string;
+  wasFreeform: boolean;
+}
+
+/**
+ * 设置会话的用户输入请求处理器
+ * 在发送消息时由 server.ts 调用，将处理器绑定到当前 socket
+ */
+export function setUserInputHandler(
+  sessionId: string,
+  handler: (request: UserInputRequest) => Promise<UserInputResponse>
+): void {
+  userInputHandlers.set(sessionId, handler);
+}
+
+/**
+ * 清除会话的用户输入请求处理器
+ */
+export function clearUserInputHandler(sessionId: string): void {
+  userInputHandlers.delete(sessionId);
+}
 
 // 每个会话最大消息数量限制
 const MAX_MESSAGES_PER_SESSION = 100;
@@ -120,6 +152,27 @@ export async function initializeCopilot(): Promise<void> {
   // 初始化工具注册中心
   initializeToolRegistry();
   console.log("✅ Agent 和 Tool 系统已初始化");
+}
+
+/**
+ * 动态获取可用模型列表
+ * 使用 client.listModels() 从 SDK 获取，失败时回退到静态列表
+ */
+export async function listAvailableModels(): Promise<
+  Array<{ id: string; name: string; description: string }>
+> {
+  try {
+    const client = await getClient();
+    const models = await client.listModels();
+    return models.map((m: any) => ({
+      id: m.id,
+      name: m.name || m.id,
+      description: m.name || m.id,
+    }));
+  } catch (e) {
+    console.warn("⚠️ 动态获取模型列表失败，使用静态列表:", (e as Error).message);
+    return [...FALLBACK_MODELS];
+  }
 }
 
 /**
@@ -208,6 +261,14 @@ export async function createSession(
     model,
     streaming: true,
     tools: tools as any,
+    onUserInputRequest: async (request: any) => {
+      const handler = userInputHandlers.get(id || sessionId || "");
+      if (handler) {
+        return handler(request);
+      }
+      // No handler registered, return empty response
+      return { answer: "", wasFreeform: true };
+    },
   });
 
   const id = sessionId || session.sessionId;
@@ -258,6 +319,13 @@ export async function getOrCreateSession(
       const session = await client.resumeSession(sessionId, {
         streaming: true,
         tools: tools as any,
+        onUserInputRequest: async (request: any) => {
+          const handler = userInputHandlers.get(sessionId);
+          if (handler) {
+            return handler(request);
+          }
+          return { answer: "", wasFreeform: true };
+        },
       });
       activeSessions.set(sessionId, session);
       console.log(`🔄 会话已恢复: ${sessionId}`);

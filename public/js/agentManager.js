@@ -236,9 +236,10 @@ function openCreateAgentModal() {
   document.getElementById('agent-modal-title').textContent = '创建 Agent';
   document.getElementById('agent-modal').classList.add('show');
   
-  // Load available tools for selection
+  // Load available tools and dynamic models for selection
   window.state?.socket?.emit('list-tools');
   window.state?.socket?.emit('list-tool-groups');
+  loadAgentModelSelect();
 }
 
 /**
@@ -261,9 +262,10 @@ function editAgent(agentId) {
   document.getElementById('agent-modal-title').textContent = '编辑 Agent';
   document.getElementById('agent-modal').classList.add('show');
   
-  // Load and select tools
+  // Load and select tools + dynamic models
   window.state?.socket?.emit('list-tools');
   window.state?.socket?.emit('list-tool-groups');
+  loadAgentModelSelect(agent.preferredModel);
 }
 
 /**
@@ -372,6 +374,29 @@ function showToast(message, type = 'info') {
     toast.classList.remove('show');
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+/**
+ * Dynamically load model options into agent preferred model select
+ */
+async function loadAgentModelSelect(selectedModel) {
+  const select = document.getElementById('agent-preferred-model');
+  if (!select) return;
+  
+  try {
+    const response = await fetch('/api/models');
+    const result = await response.json();
+    if (result.success && result.models) {
+      select.innerHTML = '<option value="">使用默认</option>' +
+        result.models.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+    }
+  } catch (e) {
+    // Keep existing options on failure
+  }
+  
+  if (selectedModel) {
+    select.value = selectedModel;
+  }
 }
 
 // Export functions for global access

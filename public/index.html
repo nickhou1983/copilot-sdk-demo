@@ -364,6 +364,22 @@ return { result };"></textarea>
     </div>
   </div>
   
+  <!-- 用户输入请求对话框 -->
+  <div id="user-input-dialog" class="user-input-overlay">
+    <div class="user-input-dialog">
+      <div class="user-input-header">
+        <span class="user-input-icon">🙋</span>
+        <span>AI 需要你的输入</span>
+      </div>
+      <div id="user-input-question" class="user-input-question"></div>
+      <div id="user-input-choices" class="user-input-choices"></div>
+      <div id="user-input-freeform" class="user-input-freeform">
+        <textarea id="user-input-text" class="user-input-text" placeholder="输入你的回答..." rows="2"></textarea>
+        <button id="user-input-submit" class="btn-primary user-input-submit">提交</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 依赖库 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
