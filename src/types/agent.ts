@@ -165,6 +165,22 @@ export interface MCPServersDataFile {
 // ===============================
 
 /**
+ * Permission policy for agent sessions
+ * Controls how tool permission requests are handled
+ */
+export type PermissionPolicy = "ask-user" | "auto-approve" | "deny-all";
+
+/**
+ * Infinite session configuration for agent
+ * Maps to SDK InfiniteSessionConfig
+ */
+export interface InfiniteSessionStorageConfig {
+  enabled: boolean;
+  backgroundCompactionThreshold?: number; // 0.0-1.0, default 0.80
+  bufferExhaustionThreshold?: number;     // 0.0-1.0, default 0.95
+}
+
+/**
  * Agent configuration
  * Core fields align with SDK CustomAgentConfig
  */
@@ -178,6 +194,9 @@ export interface AgentConfig {
   tools?: string[] | null;   // SDK CustomAgentConfig.tools (tool names, null=all)
   mcpServerIds?: string[];   // References to MCPServerStorageConfig IDs
   infer?: boolean;           // SDK CustomAgentConfig.infer
+  // Permission & Infinite Session (SDK-native)
+  permissionPolicy?: PermissionPolicy;          // How to handle SDK permission requests
+  infiniteSession?: InfiniteSessionStorageConfig; // SDK InfiniteSessionConfig
   // UI metadata
   preferredModel?: string;
   icon?: string;
@@ -266,6 +285,8 @@ export interface CreateAgentRequest {
   tools?: string[] | null;
   mcpServerIds?: string[];
   infer?: boolean;
+  permissionPolicy?: PermissionPolicy;
+  infiniteSession?: InfiniteSessionStorageConfig;
   preferredModel?: string;
   icon?: string;
   color?: string;

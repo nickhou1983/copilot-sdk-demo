@@ -13,6 +13,7 @@
       "icon": "🤖",
       "color": "#6366f1",
       "isDefault": true,
+      "permissionPolicy": "ask-user",
       "createdAt": "2026-02-10T10:12:07.710Z",
       "updatedAt": "2026-02-10T10:12:07.710Z"
     },
@@ -28,6 +29,7 @@
       "preferredModel": "claude-sonnet-4",
       "icon": "👨‍💻",
       "color": "#10b981",
+      "permissionPolicy": "ask-user",
       "createdAt": "2026-02-10T10:12:07.710Z",
       "updatedAt": "2026-02-10T10:12:07.710Z"
     },
@@ -45,6 +47,7 @@
       "preferredModel": "gpt-4o",
       "icon": "🌐",
       "color": "#f59e0b",
+      "permissionPolicy": "ask-user",
       "createdAt": "2026-02-10T10:12:07.710Z",
       "updatedAt": "2026-02-10T10:12:07.710Z"
     },
@@ -63,6 +66,7 @@
       "preferredModel": "claude-sonnet-4",
       "icon": "📋",
       "color": "#8b5cf6",
+      "permissionPolicy": "ask-user",
       "createdAt": "2026-02-10T10:12:07.710Z",
       "updatedAt": "2026-02-10T10:12:07.710Z"
     }

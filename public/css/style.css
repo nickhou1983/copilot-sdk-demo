@@ -1630,6 +1630,115 @@ body {
   margin: 8px 0;
 }
 
+/* ===== 权限请求对话框 ===== */
+.permission-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2100;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+}
+
+.permission-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.permission-dialog {
+  background-color: var(--bg-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 90%;
+  max-width: 480px;
+  padding: 24px;
+  transform: scale(0.95) translateY(10px);
+  transition: transform 0.2s ease;
+}
+
+.permission-overlay.show .permission-dialog {
+  transform: scale(1) translateY(0);
+}
+
+.permission-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.permission-icon {
+  font-size: 20px;
+}
+
+.permission-kind {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  padding: 12px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border-left: 3px solid #f59e0b;
+  margin-bottom: 12px;
+}
+
+.permission-details {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.permission-detail-item {
+  padding: 6px 0;
+}
+
+.permission-detail-item code {
+  background-color: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.permission-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.permission-approve-btn {
+  min-width: 80px;
+}
+
+.permission-deny-btn {
+  min-width: 80px;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--transition);
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
+}
+
 /* ===== MCP 服务器卡片 ===== */
 .mcp-server-list {
   display: flex;

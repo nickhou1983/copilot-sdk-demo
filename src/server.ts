@@ -19,6 +19,8 @@ import {
   listAvailableModels,
   setUserInputHandler,
   clearUserInputHandler,
+  setPermissionHandler,
+  clearPermissionHandler,
   FALLBACK_MODELS,
   type ModelId,
 } from "./copilot.js";
@@ -700,6 +702,21 @@ async function startServer() {
         });
       });
 
+      // 注册权限请求处理器：当 SDK 需要权限审批时，转发到前端
+      setPermissionHandler(data.sessionId, (request) => {
+        return new Promise((resolve) => {
+          socket.emit("permission-request", {
+            sessionId: data.sessionId,
+            kind: request.kind,
+            toolCallId: request.toolCallId,
+            details: request,
+          });
+          socket.once(`permission-response:${data.sessionId}`, (response: { kind: string }) => {
+            resolve(response as any);
+          });
+        });
+      });
+
       // 使用 Promise 包装，等待真正完成
       try {
         await sendMessage({
@@ -758,6 +775,7 @@ async function startServer() {
         console.error(`❌ sendMessage 异常: [${data.sessionId}]`, error);
       } finally {
         clearUserInputHandler(data.sessionId);
+        clearPermissionHandler(data.sessionId);
       }
     }
   );
@@ -798,6 +816,21 @@ async function startServer() {
               answer: response.answer,
               wasFreeform: response.wasFreeform ?? true,
             });
+          });
+        });
+      });
+
+      // Register permission handler (same pattern as streaming mode)
+      setPermissionHandler(data.sessionId, (request) => {
+        return new Promise((resolve) => {
+          socket.emit("permission-request", {
+            sessionId: data.sessionId,
+            kind: request.kind,
+            toolCallId: request.toolCallId,
+            details: request,
+          });
+          socket.once(`permission-response:${data.sessionId}`, (response: { kind: string }) => {
+            resolve(response as any);
           });
         });
       });
@@ -852,6 +885,7 @@ async function startServer() {
         });
       } finally {
         clearUserInputHandler(data.sessionId);
+        clearPermissionHandler(data.sessionId);
       }
     }
   );

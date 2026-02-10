@@ -87,6 +87,8 @@ export function createAgent(request: CreateAgentRequest): AgentConfig {
     tools: request.tools ?? null,
     mcpServerIds: request.mcpServerIds || [],
     infer: request.infer ?? true,
+    permissionPolicy: request.permissionPolicy || "ask-user",
+    infiniteSession: request.infiniteSession,
     preferredModel: request.preferredModel,
     icon: request.icon || "🤖",
     color: request.color || "#6366f1",
@@ -117,6 +119,8 @@ export function updateAgent(request: UpdateAgentRequest): AgentConfig {
     tools: request.tools !== undefined ? request.tools : existing.tools,
     mcpServerIds: request.mcpServerIds ?? existing.mcpServerIds,
     infer: request.infer ?? existing.infer,
+    permissionPolicy: request.permissionPolicy !== undefined ? request.permissionPolicy : existing.permissionPolicy,
+    infiniteSession: request.infiniteSession !== undefined ? request.infiniteSession : existing.infiniteSession,
     preferredModel: request.preferredModel ?? existing.preferredModel,
     icon: request.icon ?? existing.icon,
     color: request.color ?? existing.color,
@@ -177,6 +181,28 @@ export function validateAgentConfig(config: Partial<CreateAgentRequest>): string
   // Validate name format (for SDK compatibility)
   if (config.name && !/^[a-zA-Z0-9_-]+$/.test(config.name)) {
     errors.push("Agent名称只能包含字母、数字、下划线和连字符");
+  }
+
+  // Validate infinite session thresholds
+  if (config.infiniteSession) {
+    const inf = config.infiniteSession;
+    if (inf.backgroundCompactionThreshold !== undefined) {
+      if (inf.backgroundCompactionThreshold < 0 || inf.backgroundCompactionThreshold > 1) {
+        errors.push("后台压缩阈值必须在 0.0-1.0 之间");
+      }
+    }
+    if (inf.bufferExhaustionThreshold !== undefined) {
+      if (inf.bufferExhaustionThreshold < 0 || inf.bufferExhaustionThreshold > 1) {
+        errors.push("缓冲耗尽阈值必须在 0.0-1.0 之间");
+      }
+    }
+    if (
+      inf.backgroundCompactionThreshold !== undefined &&
+      inf.bufferExhaustionThreshold !== undefined &&
+      inf.backgroundCompactionThreshold >= inf.bufferExhaustionThreshold
+    ) {
+      errors.push("后台压缩阈值必须小于缓冲耗尽阈值");
+    }
   }
 
   return errors;

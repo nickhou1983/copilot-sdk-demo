@@ -271,6 +271,8 @@ function editAgent(agentId) {
   document.getElementById('agent-color').value = agent.color || '#6366f1';
   document.getElementById('agent-preferred-model').value = agent.preferredModel || '';
   document.getElementById('agent-infer').checked = agent.infer !== false;
+  document.getElementById('agent-permission-policy').value = agent.permissionPolicy || 'ask-user';
+  document.getElementById('agent-infinite-session').checked = agent.infiniteSession?.enabled !== false;
 
   // SystemMessage: fill mode dropdown and content
   const sysMsgMode = document.getElementById('agent-system-message-mode');
@@ -319,6 +321,8 @@ function resetAgentForm() {
   document.getElementById('agent-color').value = '#6366f1';
   document.getElementById('agent-preferred-model').value = '';
   document.getElementById('agent-infer').checked = true;
+  document.getElementById('agent-permission-policy').value = 'ask-user';
+  document.getElementById('agent-infinite-session').checked = true;
   // Reset systemMessage
   document.getElementById('agent-system-message-mode').value = '';
   document.getElementById('agent-system-message-content').value = '';
@@ -359,6 +363,10 @@ function saveAgent() {
     icon: document.getElementById('agent-icon').value || '🤖',
     color: document.getElementById('agent-color').value || '#6366f1',
     preferredModel: document.getElementById('agent-preferred-model').value || undefined,
+    permissionPolicy: document.getElementById('agent-permission-policy').value || 'ask-user',
+    infiniteSession: {
+      enabled: document.getElementById('agent-infinite-session').checked,
+    },
   };
 
   if (!data.name) {

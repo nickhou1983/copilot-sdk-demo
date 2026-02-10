@@ -11,7 +11,7 @@ import { getMCPServersForSession } from "./services/mcpManager.js";
 import { getSkillsForSession } from "./services/skillManager.js";
 import { initializeStorage } from "./services/storage.js";
 
-import type { SystemMessageStorageConfig } from "./types/agent.js";
+import type { SystemMessageStorageConfig, PermissionPolicy, InfiniteSessionStorageConfig } from "./types/agent.js";
 
 /**
  * Copilot 客户端封装
@@ -56,6 +56,12 @@ const messageHistoryCache = new Map<string, Array<{ role: string; content: strin
 // Per-session user input request handlers (set by server.ts when sending messages)
 const userInputHandlers = new Map<string, (request: UserInputRequest) => Promise<UserInputResponse>>();
 
+// Per-session permission request handlers (set by server.ts when sending messages)
+const permissionHandlers = new Map<string, (request: PermissionRequestData) => Promise<PermissionResponseData>>();
+
+// Per-session permission policy cache (populated from agent config)
+const sessionPermissionPolicy = new Map<string, PermissionPolicy>();
+
 export interface UserInputRequest {
   question: string;
   choices?: string[];
@@ -65,6 +71,16 @@ export interface UserInputRequest {
 export interface UserInputResponse {
   answer: string;
   wasFreeform: boolean;
+}
+
+export interface PermissionRequestData {
+  kind: "shell" | "write" | "mcp" | "read" | "url";
+  toolCallId?: string;
+  [key: string]: unknown;
+}
+
+export interface PermissionResponseData {
+  kind: "approved" | "denied-by-rules" | "denied-no-approval-rule-and-could-not-request-from-user" | "denied-interactively-by-user";
 }
 
 /**
@@ -83,6 +99,24 @@ export function setUserInputHandler(
  */
 export function clearUserInputHandler(sessionId: string): void {
   userInputHandlers.delete(sessionId);
+}
+
+/**
+ * 设置会话的权限请求处理器
+ * 在发送消息时由 server.ts 调用，将处理器绑定到当前 socket
+ */
+export function setPermissionHandler(
+  sessionId: string,
+  handler: (request: PermissionRequestData) => Promise<PermissionResponseData>
+): void {
+  permissionHandlers.set(sessionId, handler);
+}
+
+/**
+ * 清除会话的权限请求处理器
+ */
+export function clearPermissionHandler(sessionId: string): void {
+  permissionHandlers.delete(sessionId);
 }
 
 // 每个会话最大消息数量限制
@@ -161,6 +195,8 @@ function buildSessionConfig(agentId?: string) {
 
   // 获取 Agent 的 systemMessage 配置
   let systemMessage: { mode?: string; content?: string } | undefined;
+  let permissionPolicy: PermissionPolicy = "ask-user";
+  let infiniteSession: InfiniteSessionStorageConfig | undefined;
   if (agentId) {
     const agent = getAgentById(agentId);
     if (agent?.systemMessage && agent.systemMessage.content) {
@@ -168,6 +204,12 @@ function buildSessionConfig(agentId?: string) {
         mode: agent.systemMessage.mode,
         content: agent.systemMessage.content,
       };
+    }
+    if (agent?.permissionPolicy) {
+      permissionPolicy = agent.permissionPolicy;
+    }
+    if (agent?.infiniteSession) {
+      infiniteSession = agent.infiniteSession;
     }
   }
 
@@ -178,6 +220,8 @@ function buildSessionConfig(agentId?: string) {
     skillDirectories: skillsConfig.skillDirectories,
     disabledSkills: skillsConfig.disabledSkills,
     systemMessage,
+    permissionPolicy,
+    infiniteSession,
   };
 }
 
@@ -274,6 +318,42 @@ export async function createSession(
   // 构建会话配置（MCP + Custom Agents + Skills）
   const sessionConfig = buildSessionConfig(resolvedAgentId);
 
+  // 缓存权限策略
+  const permPolicy = sessionConfig.permissionPolicy;
+
+  // 构建 onPermissionRequest 回调
+  const onPermissionRequest = async (request: any, invocation: any) => {
+    const sid = id || sessionId || invocation?.sessionId || "";
+    const policy = sessionPermissionPolicy.get(sid) || permPolicy;
+
+    // 自动批准模式
+    if (policy === "auto-approve") {
+      console.log(`✅ [权限] 自动批准: ${request.kind}`);
+      return { kind: "approved" as const };
+    }
+    // 全部拒绝模式
+    if (policy === "deny-all") {
+      console.log(`❌ [权限] 自动拒绝: ${request.kind}`);
+      return { kind: "denied-by-rules" as const };
+    }
+    // 询问用户模式 - 转发到前端
+    const handler = permissionHandlers.get(sid);
+    if (handler) {
+      return handler(request);
+    }
+    // 没有处理器时默认拒绝
+    return { kind: "denied-no-approval-rule-and-could-not-request-from-user" as const };
+  };
+
+  // 构建 infiniteSessions 配置
+  const infiniteSessionsConfig = sessionConfig.infiniteSession
+    ? {
+        enabled: sessionConfig.infiniteSession.enabled,
+        backgroundCompactionThreshold: sessionConfig.infiniteSession.backgroundCompactionThreshold,
+        bufferExhaustionThreshold: sessionConfig.infiniteSession.bufferExhaustionThreshold,
+      }
+    : undefined;
+
   const session = await client.createSession({
     sessionId,
     model,
@@ -284,6 +364,8 @@ export async function createSession(
     skillDirectories: sessionConfig.skillDirectories.length > 0 ? sessionConfig.skillDirectories : undefined,
     disabledSkills: sessionConfig.disabledSkills.length > 0 ? sessionConfig.disabledSkills : undefined,
     systemMessage: sessionConfig.systemMessage as any,
+    infiniteSessions: infiniteSessionsConfig,
+    onPermissionRequest,
     onUserInputRequest: async (request: any) => {
       const handler = userInputHandlers.get(id || sessionId || "");
       if (handler) {
@@ -296,8 +378,9 @@ export async function createSession(
   const id = sessionId || session.sessionId;
   activeSessions.set(id, session);
   sessionAgentMap.set(id, resolvedAgentId);
+  sessionPermissionPolicy.set(id, permPolicy);
 
-  console.log(`📝 会话已创建: ${id}, 模型: ${model}, Agent: ${resolvedAgentId}`);
+  console.log(`📝 会话已创建: ${id}, 模型: ${model}, Agent: ${resolvedAgentId}, 权限策略: ${permPolicy}${infiniteSessionsConfig ? ', 无限会话: 开启' : ''}`);
   return session;
 }
 
@@ -327,6 +410,14 @@ export async function getOrCreateSession(
         customAgents: sessionConfig.customAgents.length > 0 ? sessionConfig.customAgents : undefined,
         skillDirectories: sessionConfig.skillDirectories.length > 0 ? sessionConfig.skillDirectories : undefined,
         disabledSkills: sessionConfig.disabledSkills.length > 0 ? sessionConfig.disabledSkills : undefined,
+        onPermissionRequest: async (request: any, invocation: any) => {
+          const policy = sessionPermissionPolicy.get(sessionId) || sessionConfig.permissionPolicy;
+          if (policy === "auto-approve") return { kind: "approved" as const };
+          if (policy === "deny-all") return { kind: "denied-by-rules" as const };
+          const handler = permissionHandlers.get(sessionId);
+          if (handler) return handler(request);
+          return { kind: "denied-no-approval-rule-and-could-not-request-from-user" as const };
+        },
         onUserInputRequest: async (request: any) => {
           const handler = userInputHandlers.get(sessionId);
           if (handler) {
@@ -336,6 +427,7 @@ export async function getOrCreateSession(
         },
       });
       activeSessions.set(sessionId, session);
+      sessionPermissionPolicy.set(sessionId, sessionConfig.permissionPolicy);
       console.log(`🔄 会话已恢复: ${sessionId}`);
       return session;
     }

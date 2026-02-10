@@ -305,6 +305,23 @@
             </label>
           </div>
 
+          <div class="form-group">
+            <label for="agent-permission-policy">权限策略 (Permission Policy)</label>
+            <select id="agent-permission-policy">
+              <option value="ask-user">询问用户 (ask-user)</option>
+              <option value="auto-approve">自动批准 (auto-approve)</option>
+              <option value="deny-all">全部拒绝 (deny-all)</option>
+            </select>
+            <small>当 AI 请求执行敏感操作（如 shell 命令、文件写入）时的处理策略</small>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="agent-infinite-session" checked>
+              启用无限会话 (Infinite Sessions) <small>- 自动压缩上下文，支持超长对话</small>
+            </label>
+          </div>
+
           <div class="form-actions">
             <button type="button" class="btn-secondary" onclick="window.agentManager.closeAgentModal()">取消</button>
             <button type="submit" class="btn-primary">保存</button>
@@ -508,6 +525,22 @@ return { result };"></textarea>
     </div>
   </div>
   
+  <!-- 权限请求对话框 -->
+  <div id="permission-dialog" class="permission-overlay">
+    <div class="permission-dialog">
+      <div class="permission-header">
+        <span class="permission-icon">🔐</span>
+        <span>AI 请求操作权限</span>
+      </div>
+      <div id="permission-kind" class="permission-kind"></div>
+      <div id="permission-details" class="permission-details"></div>
+      <div class="permission-actions">
+        <button class="btn-danger permission-deny-btn" onclick="submitPermissionResponse('denied-interactively-by-user')">拒绝</button>
+        <button class="btn-primary permission-approve-btn" onclick="submitPermissionResponse('approved')">批准</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 用户输入请求对话框 -->
   <div id="user-input-dialog" class="user-input-overlay">
     <div class="user-input-dialog">
