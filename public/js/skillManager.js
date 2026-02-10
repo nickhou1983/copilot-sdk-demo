@@ -241,5 +241,4 @@ class SkillManager {
   }
 }
 
-// Global instance (initialized by app.js)
-let skillManager = null;
+// 全局实例由 app.js 初始化，挂载到 window.skillManager

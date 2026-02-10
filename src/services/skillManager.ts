@@ -27,16 +27,21 @@ function scanDirectory(dir: string, disabledSkills: string[]): SkillInfo[] {
   }
 
   try {
-    const files = fs.readdirSync(dir);
-    for (const file of files) {
-      if (!file.endsWith(".md")) continue;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
 
-      const filePath = path.join(dir, file);
-      const stat = fs.statSync(filePath);
-      if (!stat.isFile()) continue;
+      if (entry.isDirectory()) {
+        // Recurse into subdirectories
+        skills.push(...scanDirectory(fullPath, disabledSkills));
+        continue;
+      }
 
-      const content = fs.readFileSync(filePath, "utf-8");
-      const name = path.basename(file, ".md");
+      if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+
+      const stat = fs.statSync(fullPath);
+      const content = fs.readFileSync(fullPath, "utf-8");
+      const name = path.basename(entry.name, ".md");
 
       // Extract description from first line or first paragraph
       const lines = content.split("\n").filter((l) => l.trim());
@@ -53,7 +58,7 @@ function scanDirectory(dir: string, disabledSkills: string[]): SkillInfo[] {
         id: `${path.basename(dir)}_${name}`,
         name,
         description: description.substring(0, 200),
-        filename: file,
+        filename: entry.name,
         directory: dir,
         content,
         enabled: !disabledSkills.includes(name),

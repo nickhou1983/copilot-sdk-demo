@@ -228,5 +228,4 @@ class MCPManager {
   }
 }
 
-// 全局实例（由 app.js 初始化）
-let mcpManager = null;
+// 全局实例由 app.js 初始化，挂载到 window.mcpManager

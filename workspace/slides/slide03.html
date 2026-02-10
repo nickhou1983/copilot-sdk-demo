@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html><head><style>
+html { background: #181B24; }
+body { width: 720pt; height: 405pt; margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; background-image: url('../assets/slide-bg.png'); background-size: 720pt 405pt; }
+.header { margin: 14pt 0 0 30pt; }
+.header h2 { color: #B165FB; font-size: 16pt; margin: 0; }
+.content { margin: 16pt 40pt 0 40pt; display: flex; gap: 16pt; }
+.col { flex: 1; }
+.section { background: #1E2130; border-radius: 6pt; padding: 14pt; margin-bottom: 12pt; }
+.section h3 { color: #B165FB; font-size: 11pt; margin: 0 0 10pt 0; }
+.item { display: flex; margin-bottom: 6pt; }
+.dot { width: 6pt; height: 6pt; background: #40695B; border-radius: 50%; margin: 4pt 8pt 0 0; flex-shrink: 0; }
+.item p { color: #C0B8D6; font-size: 9pt; margin: 0; line-height: 1.5; }
+.highlight { background: #2A1F4E; border-radius: 3pt; padding: 2pt 6pt; display: inline-block; margin-top: 4pt; }
+.highlight p { color: #B165FB; font-size: 8pt; margin: 0; }
+</style></head><body>
+<div class="header"><h2>技术栈</h2></div>
+<div class="content">
+  <div class="col">
+    <div class="section">
+      <h3>Backend 后端</h3>
+      <div class="item"><div class="dot"></div><p><b>Runtime:</b> Node.js (v18+)</p></div>
+      <div class="item"><div class="dot"></div><p><b>Framework:</b> Express.js</p></div>
+      <div class="item"><div class="dot"></div><p><b>实时通信:</b> Socket.IO</p></div>
+      <div class="item"><div class="dot"></div><p><b>语言:</b> TypeScript 5.3</p></div>
+      <div class="item"><div class="dot"></div><p><b>核心 SDK:</b> @github/copilot-sdk v0.1.20</p></div>
+      <div class="item"><div class="dot"></div><p><b>验证:</b> Zod v3.22</p></div>
+    </div>
+    <div class="section">
+      <h3>Build 构建</h3>
+      <div class="item"><div class="dot"></div><p>TypeScript Compiler (tsc)</p></div>
+      <div class="item"><div class="dot"></div><p>tsx 开发服务器 (watch mode)</p></div>
+      <div class="item"><div class="dot"></div><p>ES2022 模块输出</p></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="section">
+      <h3>Frontend 前端</h3>
+      <div class="item"><div class="dot"></div><p><b>语言:</b> Vanilla JavaScript（无框架）</p></div>
+      <div class="item"><div class="dot"></div><p><b>样式:</b> 原生 CSS + CSS Variables</p></div>
+      <div class="item"><div class="dot"></div><p><b>文件处理:</b> HTML5 File API / 拖拽</p></div>
+      <div class="item"><div class="dot"></div><p><b>代码高亮:</b> Highlight.js (CDN)</p></div>
+    </div>
+    <div class="section">
+      <h3>核心依赖</h3>
+      <div class="highlight"><p>@github/copilot-sdk</p></div>
+      <div class="highlight"><p>express</p></div>
+      <div class="highlight"><p>socket.io</p></div>
+      <div class="highlight"><p>multer</p></div>
+      <div class="highlight"><p>zod</p></div>
+    </div>
+  </div>
+</div>
+</body></html>

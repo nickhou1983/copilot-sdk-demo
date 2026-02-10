@@ -52,12 +52,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (window.toolManager) {
     window.toolManager.init(state.socket);
   }
-  // 初始化 MCP 和 Skills 管理器
+  // 初始化 MCP 和 Skills 管理器（挂载到 window 供 onclick 访问）
   if (typeof MCPManager !== 'undefined') {
-    mcpManager = new MCPManager(state.socket);
+    window.mcpManager = new MCPManager(state.socket);
   }
   if (typeof SkillManager !== 'undefined') {
-    skillManager = new SkillManager(state.socket);
+    window.skillManager = new SkillManager(state.socket);
   }
 });
 
@@ -934,9 +934,9 @@ function switchTab(tabId) {
   } else if (tabId === 'groups-tab') {
     state.socket.emit('list-tool-groups');
   } else if (tabId === 'mcp-tab') {
-    if (mcpManager) mcpManager.loadServers();
+    if (window.mcpManager) window.mcpManager.loadServers();
   } else if (tabId === 'skills-tab') {
-    if (skillManager) skillManager.loadSkills();
+    if (window.skillManager) window.skillManager.loadSkills();
   }
 }
 

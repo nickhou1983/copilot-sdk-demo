@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html><head><style>
+html { background: #181B24; }
+body { width: 720pt; height: 405pt; margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; background-image: url('../assets/slide-bg.png'); background-size: 720pt 405pt; }
+.header { margin: 14pt 0 0 30pt; }
+.header h2 { color: #B165FB; font-size: 16pt; margin: 0; }
+.content { margin: 14pt 30pt 0 30pt; display: flex; flex-direction: column; gap: 10pt; }
+.flow { display: flex; align-items: center; gap: 6pt; flex-wrap: wrap; justify-content: center; }
+.step { background: #1E2130; border-radius: 6pt; padding: 8pt 12pt; border-left: 2pt solid #B165FB; }
+.step p { color: #FFFFFF; font-size: 9pt; margin: 0; }
+.step p.detail { color: #8A82A6; font-size: 7pt; margin: 2pt 0 0 0; }
+.arrow p { color: #B165FB; font-size: 14pt; margin: 0; }
+.events { display: flex; gap: 12pt; margin-top: 6pt; }
+.event-box { flex: 1; background: #1E2130; border-radius: 6pt; padding: 10pt; border-top: 2pt solid #40695B; }
+.event-box h3 { color: #40695B; font-size: 9pt; margin: 0 0 6pt 0; }
+.event-box p { color: #C0B8D6; font-size: 8pt; margin: 0 0 3pt 0; font-family: Courier New, monospace; }
+.label { background: #2A1F4E; border-radius: 3pt; padding: 4pt 10pt; margin-bottom: 8pt; }
+.label p { color: #B165FB; font-size: 9pt; margin: 0; text-align: center; }
+</style></head><body>
+<div class="header"><h2>消息流转流程</h2></div>
+<div class="content">
+  <div class="flow">
+    <div class="step"><p>用户输入</p></div>
+    <div class="arrow"><p>→</p></div>
+    <div class="step"><p>send-message</p><p class="detail">Socket.IO 事件</p></div>
+    <div class="arrow"><p>→</p></div>
+    <div class="step"><p>消息缓存</p><p class="detail">本地历史记录</p></div>
+    <div class="arrow"><p>→</p></div>
+    <div class="step"><p>系统提示注入</p><p class="detail">首条消息时注入</p></div>
+    <div class="arrow"><p>→</p></div>
+    <div class="step"><p>SDK send()</p><p class="detail">Copilot CLI</p></div>
+  </div>
+  <div class="label"><p>Stream Events 流式事件处理</p></div>
+  <div class="events">
+    <div class="event-box">
+      <h3>消息流</h3>
+      <p>message_delta</p>
+      <p>message-complete</p>
+    </div>
+    <div class="event-box">
+      <h3>推理流</h3>
+      <p>reasoning_delta</p>
+      <p>思维过程展示</p>
+    </div>
+    <div class="event-box">
+      <h3>工具流</h3>
+      <p>tool.execution_start</p>
+      <p>tool.execution_complete</p>
+    </div>
+    <div class="event-box">
+      <h3>前端渲染</h3>
+      <p>增量渲染 Delta</p>
+      <p>完成 → 最终显示</p>
+    </div>
+  </div>
+</div>
+</body></html>

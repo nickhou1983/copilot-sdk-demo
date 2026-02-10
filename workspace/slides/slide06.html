@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html><head><style>
+html { background: #181B24; }
+body { width: 720pt; height: 405pt; margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; background-image: url('../assets/slide-bg.png'); background-size: 720pt 405pt; }
+.header { margin: 14pt 0 0 30pt; }
+.header h2 { color: #B165FB; font-size: 16pt; margin: 0; }
+.content { margin: 12pt 30pt 0 30pt; display: flex; flex-direction: column; gap: 10pt; }
+.row { display: flex; gap: 12pt; }
+.mod { flex: 1; background: #1E2130; border-radius: 6pt; padding: 12pt; border-left: 3pt solid #B165FB; }
+.mod.green { border-left-color: #40695B; }
+.mod h3 { color: #FFFFFF; font-size: 10pt; margin: 0 0 4pt 0; }
+.mod p.sub { color: #B165FB; font-size: 8pt; margin: 0 0 6pt 0; }
+.mod p.sub.green { color: #40695B; }
+.mod p { color: #8A82A6; font-size: 8pt; margin: 0 0 3pt 0; line-height: 1.4; }
+</style></head><body>
+<div class="header"><h2>后端架构</h2></div>
+<div class="content">
+  <div class="row">
+    <div class="mod">
+      <h3>Copilot Client 管理</h3>
+      <p class="sub">copilot.ts · 755 行</p>
+      <p>单例模式 CopilotClient 管理</p>
+      <p>会话 ID ↔ CopilotSession 映射</p>
+      <p>stdio / Server 双运行模式</p>
+      <p>消息历史缓存 &amp; 系统提示注入</p>
+    </div>
+    <div class="mod green">
+      <h3>Agent 管理服务</h3>
+      <p class="sub green">agentManager.ts</p>
+      <p>通用助手 - 全工具启用</p>
+      <p>代码助手 - 编程任务</p>
+      <p>翻译助手 - 专业翻译</p>
+      <p>计划助手 - 任务规划分解</p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="mod green">
+      <h3>工具注册表</h3>
+      <p class="sub green">toolRegistry.ts</p>
+      <p>内置 + 自定义双轨制管理</p>
+      <p>Agent 配置过滤工具访问</p>
+      <p>动态缓存 &amp; 自定义工具加载</p>
+    </div>
+    <div class="mod">
+      <h3>存储服务</h3>
+      <p class="sub">storage.ts</p>
+      <p>JSON 文件持久化存储</p>
+      <p>Schema 版本控制 (v1.0)</p>
+      <p>预置默认 Agent &amp; 工具组</p>
+    </div>
+    <div class="mod">
+      <h3>Socket.IO 事件体系</h3>
+      <p class="sub">server.ts · 608 行</p>
+      <p>50+ 双向事件</p>
+      <p>会话 / 消息 / Agent / 工具</p>
+      <p>流式传输 &amp; 中断控制</p>
+    </div>
+  </div>
+</div>
+</body></html>
