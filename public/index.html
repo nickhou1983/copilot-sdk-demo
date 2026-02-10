@@ -126,6 +126,10 @@
               placeholder="输入消息，按 Enter 发送..."
               rows="1"
             ></textarea>
+            <label class="sync-toggle" title="同步模式: 等待完整响应后一次显示">
+              <input type="checkbox" id="sync-mode-toggle">
+              <span class="sync-label">Sync</span>
+            </label>
             <button id="send-btn" class="send-btn" title="发送">
               ➤
             </button>
@@ -148,6 +152,8 @@
           <button class="tab-btn active" onclick="switchTab('agents-tab')">Agents</button>
           <button class="tab-btn" onclick="switchTab('tools-tab')">工具</button>
           <button class="tab-btn" onclick="switchTab('groups-tab')">工具组</button>
+          <button class="tab-btn" onclick="switchTab('mcp-tab')">MCP</button>
+          <button class="tab-btn" onclick="switchTab('skills-tab')">Skills</button>
         </div>
         
         <div id="agents-tab" class="tab-content active">
@@ -182,6 +188,36 @@
             <!-- 工具组列表 -->
           </div>
         </div>
+
+        <div id="mcp-tab" class="tab-content">
+          <div class="tab-header">
+            <h3>MCP 服务器</h3>
+            <button class="btn-primary" onclick="mcpManager && mcpManager.openCreateModal()">+ 添加 MCP 服务器</button>
+          </div>
+          <div id="mcp-server-list" class="mcp-server-list">
+            <!-- MCP 服务器列表 -->
+          </div>
+        </div>
+
+        <div id="skills-tab" class="tab-content">
+          <div class="tab-header">
+            <h3>Skills 技能</h3>
+            <button class="btn-primary" onclick="skillManager && skillManager.openCreateModal()">+ 创建 Skill</button>
+          </div>
+          <div id="skills-list" class="skills-list">
+            <!-- Skills 列表 -->
+          </div>
+          <div class="skills-directories">
+            <h4>Skill 目录</h4>
+            <div id="skill-directories-list">
+              <!-- Skill 目录列表 -->
+            </div>
+            <div class="skill-dir-add">
+              <input type="text" id="new-skill-dir" placeholder="输入目录路径...">
+              <button class="btn-secondary" onclick="skillManager && skillManager.addDirectory()">添加目录</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -196,10 +232,15 @@
       <div class="modal-body">
         <form id="agent-form" onsubmit="event.preventDefault(); window.agentManager.saveAgent();">
           <div class="form-group">
-            <label for="agent-name">名称 *</label>
-            <input type="text" id="agent-name" required placeholder="例如：代码助手">
+            <label for="agent-name">名称 (ID) * <small>(英文、数字、下划线、连字符)</small></label>
+            <input type="text" id="agent-name" required placeholder="例如：code-assistant" pattern="[a-zA-Z0-9_-]+">
           </div>
-          
+
+          <div class="form-group">
+            <label for="agent-display-name">显示名称</label>
+            <input type="text" id="agent-display-name" placeholder="例如：代码助手">
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label for="agent-icon">图标</label>
@@ -210,52 +251,60 @@
               <input type="color" id="agent-color" value="#6366f1">
             </div>
           </div>
-          
+
           <div class="form-group">
             <label for="agent-description">描述</label>
             <input type="text" id="agent-description" placeholder="简短描述 Agent 的用途">
           </div>
-          
+
           <div class="form-group">
-            <label for="agent-system-prompt">系统提示词</label>
-            <textarea id="agent-system-prompt" rows="6" placeholder="定义 Agent 的行为和角色..."></textarea>
+            <label for="agent-prompt">Prompt <small>(Agent 的行为指令)</small></label>
+            <textarea id="agent-prompt" rows="6" placeholder="定义 Agent 的行为和角色..."></textarea>
           </div>
-          
+
+          <div class="form-group">
+            <label for="agent-system-message-mode">系统消息定制</label>
+            <select id="agent-system-message-mode" onchange="window.agentManager.toggleSystemMessage(this.value)">
+              <option value="">不设置</option>
+              <option value="append">Append (追加到 SDK 默认系统消息后)</option>
+              <option value="replace">Replace (完全替换系统消息)</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="system-message-content-group" style="display: none;">
+            <label for="agent-system-message-content">系统消息内容</label>
+            <textarea id="agent-system-message-content" rows="4" placeholder="输入系统消息内容..."></textarea>
+            <div id="system-message-warning" class="form-warning" style="display: none;">
+              ⚠️ Replace 模式将完全替换 SDK 默认系统消息，可能影响安全约束和基本行为
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="agent-tools">工具列表 <small>(逗号分隔工具名，留空 = 可使用所有工具)</small></label>
+            <input type="text" id="agent-tools" placeholder="例如：get_current_time, calculate（留空表示所有工具）">
+          </div>
+
           <div class="form-group">
             <label for="agent-preferred-model">首选模型</label>
             <select id="agent-preferred-model">
               <option value="">使用默认</option>
-              <option value="claude-opus-4.5">Claude Opus 4.5</option>
-              <option value="claude-sonnet-4.5">Claude Sonnet 4.5</option>
-              <option value="claude-sonnet-4">Claude Sonnet 4</option>
-              <option value="gpt-5.2-codex">GPT-5.2-Codex</option>
-              <option value="gpt-4o">GPT-4o</option>
-              <option value="gpt-4.1">GPT-4.1</option>
-              <option value="o3-mini">o3-mini</option>
             </select>
           </div>
-          
+
           <div class="form-group">
-            <label>工具组</label>
-            <div id="tool-groups-select" class="checkbox-group">
+            <label>MCP 服务器</label>
+            <div id="agent-mcp-servers" class="checkbox-group">
               <!-- 动态渲染 -->
             </div>
           </div>
-          
+
           <div class="form-group">
-            <label>内置工具</label>
-            <div id="builtin-tools-select" class="checkbox-group">
-              <!-- 动态渲染 -->
-            </div>
+            <label class="checkbox-label">
+              <input type="checkbox" id="agent-infer" checked>
+              启用推理 (infer) <small>- 是否允许 SDK 自动推断调用此 Agent</small>
+            </label>
           </div>
-          
-          <div class="form-group">
-            <label>自定义工具</label>
-            <div id="custom-tools-select" class="checkbox-group">
-              <!-- 动态渲染 -->
-            </div>
-          </div>
-          
+
           <div class="form-actions">
             <button type="button" class="btn-secondary" onclick="window.agentManager.closeAgentModal()">取消</button>
             <button type="submit" class="btn-primary">保存</button>
@@ -331,6 +380,25 @@ return { result };"></textarea>
             </div>
           </div>
           
+          <!-- 结果增强配置 -->
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="tool-structured-result" onchange="window.toolManager.toggleResultConfig(this.checked)">
+              启用结构化结果 <small>- 返回 ToolResultObject (含状态、遥测、二进制数据)</small>
+            </label>
+          </div>
+
+          <div id="tool-result-config-group" style="display: none;">
+            <div class="form-group">
+              <label for="tool-binary-path">二进制数据路径 <small>(可选，例如 data.image)</small></label>
+              <input type="text" id="tool-binary-path" placeholder="response.data (JSONPath 到 base64 字段)">
+            </div>
+            <div class="form-group">
+              <label for="tool-binary-mimetype">二进制 MIME 类型</label>
+              <input type="text" id="tool-binary-mimetype" placeholder="image/png">
+            </div>
+          </div>
+
           <div class="form-actions">
             <button type="button" class="btn-secondary" onclick="window.toolManager.closeToolModal()">取消</button>
             <button type="submit" class="btn-primary">保存</button>
@@ -340,6 +408,82 @@ return { result };"></textarea>
     </div>
   </div>
   
+  <!-- MCP 服务器编辑模态框 -->
+  <div id="mcp-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="mcp-modal-title">添加 MCP 服务器</h2>
+        <button class="modal-close" onclick="mcpManager && mcpManager.closeMCPModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="mcp-server-name-input">服务器名称 *</label>
+          <input type="text" id="mcp-server-name-input" placeholder="例如：my-mcp-server">
+        </div>
+        <div class="form-group">
+          <label for="mcp-server-type-select">类型</label>
+          <select id="mcp-server-type-select" onchange="mcpManager && mcpManager.toggleTypeFields(this.value)">
+            <option value="local">Local (stdio)</option>
+            <option value="stdio">Stdio</option>
+            <option value="http">HTTP</option>
+            <option value="sse">SSE</option>
+          </select>
+        </div>
+        <div id="mcp-local-fields">
+          <div class="form-group">
+            <label for="mcp-server-command-input">命令 *</label>
+            <input type="text" id="mcp-server-command-input" placeholder="例如：npx -y @modelcontextprotocol/server-filesystem">
+          </div>
+          <div class="form-group">
+            <label for="mcp-server-args-input">参数 <small>(空格分隔)</small></label>
+            <input type="text" id="mcp-server-args-input" placeholder="例如：/path/to/dir">
+          </div>
+        </div>
+        <div id="mcp-remote-fields" style="display: none;">
+          <div class="form-group">
+            <label for="mcp-server-url-input">URL *</label>
+            <input type="text" id="mcp-server-url-input" placeholder="https://mcp-server.example.com">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="mcp-server-scope-select">作用域</label>
+          <select id="mcp-server-scope-select">
+            <option value="global">全局</option>
+            <option value="agent">Agent 限定</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="mcpManager && mcpManager.closeMCPModal()">取消</button>
+          <button type="button" class="btn-primary" onclick="mcpManager && mcpManager.saveServer()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Skill 编辑模态框 -->
+  <div id="skill-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="skill-modal-title">创建 Skill</h2>
+        <button class="modal-close" onclick="skillManager && skillManager.closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="skill-name-input">名称 * <small>(将作为文件名)</small></label>
+          <input type="text" id="skill-name-input" placeholder="例如：code-review">
+        </div>
+        <div class="form-group">
+          <label for="skill-content-input">内容 (Markdown) *</label>
+          <textarea id="skill-content-input" rows="12" placeholder="# Skill 标题&#10;&#10;在这里定义 Skill 的内容..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="skillManager && skillManager.closeModal()">取消</button>
+          <button type="button" class="btn-primary" onclick="skillManager && skillManager.saveSkill()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 设置模态框 -->
   <div id="settings-modal" class="modal">
     <div class="modal-content">
@@ -386,6 +530,8 @@ return { result };"></textarea>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <script src="js/agentManager.js"></script>
   <script src="js/toolManager.js"></script>
+  <script src="js/mcpManager.js"></script>
+  <script src="js/skillManager.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

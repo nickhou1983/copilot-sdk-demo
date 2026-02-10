@@ -10,6 +10,7 @@ import {
   deleteSession,
   getSessionMessages,
   sendMessage,
+  sendMessageSync,
   abortSession,
   stopClient,
   initializeCopilot,
@@ -49,6 +50,27 @@ import {
   loadToolGroups,
 } from "./services/storage.js";
 import { validateToolConfig } from "./tools/customHandler.js";
+// MCP 管理服务
+import {
+  listMCPServers,
+  createMCPServer,
+  updateMCPServer,
+  removeMCPServer,
+  toggleMCPServer,
+} from "./services/mcpManager.js";
+// Skills 管理服务
+import {
+  getAllSkills,
+  getSkill,
+  getSkillContent,
+  createSkill,
+  updateSkill,
+  deleteSkill,
+  toggleSkillEnabled,
+  getSkillDirectories,
+  addSkillDirectory,
+  removeSkillDirectory,
+} from "./services/skillManager.js";
 import type {
   CreateAgentRequest,
   UpdateAgentRequest,
@@ -57,6 +79,8 @@ import type {
   CustomToolConfig,
   ToolGroup,
   CreateToolGroupRequest,
+  CreateMCPServerRequest,
+  UpdateMCPServerRequest,
 } from "./types/agent.js";
 
 const app = express();
@@ -344,6 +368,200 @@ async function startServer() {
       }
     });
 
+    // ===============================
+    // MCP Server 管理事件
+    // ===============================
+
+    // 获取所有 MCP 服务器
+    socket.on("list-mcp-servers", () => {
+      try {
+        const servers = listMCPServers();
+        socket.emit("mcp-servers-list", { success: true, servers });
+      } catch (error) {
+        socket.emit("mcp-servers-list", {
+          success: false,
+          error: error instanceof Error ? error.message : "获取 MCP 服务器列表失败",
+        });
+      }
+    });
+
+    // 创建 MCP 服务器
+    socket.on("create-mcp-server", (data: CreateMCPServerRequest) => {
+      try {
+        const server = createMCPServer(data);
+        socket.emit("mcp-server-created", { success: true, server });
+      } catch (error) {
+        socket.emit("mcp-server-created", {
+          success: false,
+          error: error instanceof Error ? error.message : "创建 MCP 服务器失败",
+        });
+      }
+    });
+
+    // 更新 MCP 服务器
+    socket.on("update-mcp-server", (data: UpdateMCPServerRequest) => {
+      try {
+        const server = updateMCPServer(data.id, data);
+        socket.emit("mcp-server-updated", { success: true, server });
+      } catch (error) {
+        socket.emit("mcp-server-updated", {
+          success: false,
+          error: error instanceof Error ? error.message : "更新 MCP 服务器失败",
+        });
+      }
+    });
+
+    // 删除 MCP 服务器
+    socket.on("delete-mcp-server", (data: { serverId: string }) => {
+      try {
+        const success = removeMCPServer(data.serverId);
+        socket.emit("mcp-server-deleted", { success, serverId: data.serverId });
+      } catch (error) {
+        socket.emit("mcp-server-deleted", {
+          success: false,
+          error: error instanceof Error ? error.message : "删除 MCP 服务器失败",
+        });
+      }
+    });
+
+    // 启用/禁用 MCP 服务器
+    socket.on("toggle-mcp-server", (data: { serverId: string; enabled: boolean }) => {
+      try {
+        const server = toggleMCPServer(data.serverId, data.enabled);
+        socket.emit("mcp-server-toggled", { success: true, server });
+      } catch (error) {
+        socket.emit("mcp-server-toggled", {
+          success: false,
+          error: error instanceof Error ? error.message : "切换 MCP 服务器状态失败",
+        });
+      }
+    });
+
+    // ===============================
+    // Skills 管理事件
+    // ===============================
+
+    // 获取所有 Skills
+    socket.on("list-skills", () => {
+      try {
+        const skills = getAllSkills();
+        socket.emit("skills-list", { success: true, skills });
+      } catch (error) {
+        socket.emit("skills-list", {
+          success: false,
+          error: error instanceof Error ? error.message : "获取 Skills 列表失败",
+        });
+      }
+    });
+
+    // 获取 Skill 详情
+    socket.on("get-skill", (data: { skillId: string }) => {
+      try {
+        const skill = getSkill(data.skillId);
+        if (skill) {
+          socket.emit("skill-detail", { success: true, skill });
+        } else {
+          socket.emit("skill-detail", { success: false, error: "Skill 不存在" });
+        }
+      } catch (error) {
+        socket.emit("skill-detail", {
+          success: false,
+          error: error instanceof Error ? error.message : "获取 Skill 详情失败",
+        });
+      }
+    });
+
+    // 创建 Skill
+    socket.on("create-skill", (data: { name: string; content: string; directory?: string }) => {
+      try {
+        const skill = createSkill(data);
+        socket.emit("skill-created", { success: true, skill });
+      } catch (error) {
+        socket.emit("skill-created", {
+          success: false,
+          error: error instanceof Error ? error.message : "创建 Skill 失败",
+        });
+      }
+    });
+
+    // 更新 Skill
+    socket.on("update-skill", (data: { skillId: string; content: string }) => {
+      try {
+        const skill = updateSkill(data.skillId, data.content);
+        socket.emit("skill-updated", { success: true, skill });
+      } catch (error) {
+        socket.emit("skill-updated", {
+          success: false,
+          error: error instanceof Error ? error.message : "更新 Skill 失败",
+        });
+      }
+    });
+
+    // 删除 Skill
+    socket.on("delete-skill", (data: { skillId: string }) => {
+      try {
+        const success = deleteSkill(data.skillId);
+        socket.emit("skill-deleted", { success, skillId: data.skillId });
+      } catch (error) {
+        socket.emit("skill-deleted", {
+          success: false,
+          error: error instanceof Error ? error.message : "删除 Skill 失败",
+        });
+      }
+    });
+
+    // 启用/禁用 Skill
+    socket.on("toggle-skill", (data: { skillName: string; enabled: boolean }) => {
+      try {
+        const config = toggleSkillEnabled(data.skillName, data.enabled);
+        socket.emit("skill-toggled", { success: true, config });
+      } catch (error) {
+        socket.emit("skill-toggled", {
+          success: false,
+          error: error instanceof Error ? error.message : "切换 Skill 状态失败",
+        });
+      }
+    });
+
+    // 获取 Skill 目录列表
+    socket.on("list-skill-directories", () => {
+      try {
+        const directories = getSkillDirectories();
+        socket.emit("skill-directories-list", { success: true, directories });
+      } catch (error) {
+        socket.emit("skill-directories-list", {
+          success: false,
+          error: error instanceof Error ? error.message : "获取 Skill 目录列表失败",
+        });
+      }
+    });
+
+    // 添加 Skill 目录
+    socket.on("add-skill-directory", (data: { directory: string }) => {
+      try {
+        const config = addSkillDirectory(data.directory);
+        socket.emit("skill-directory-added", { success: true, config });
+      } catch (error) {
+        socket.emit("skill-directory-added", {
+          success: false,
+          error: error instanceof Error ? error.message : "添加 Skill 目录失败",
+        });
+      }
+    });
+
+    // 移除 Skill 目录
+    socket.on("remove-skill-directory", (data: { directory: string }) => {
+      try {
+        const config = removeSkillDirectory(data.directory);
+        socket.emit("skill-directory-removed", { success: true, config });
+      } catch (error) {
+        socket.emit("skill-directory-removed", {
+          success: false,
+          error: error instanceof Error ? error.message : "移除 Skill 目录失败",
+        });
+      }
+    });
+
     // 获取会话关联的 Agent
     socket.on("get-session-agent", (data: { sessionId: string }) => {
       const agentId = getSessionAgentId(data.sessionId);
@@ -511,11 +729,14 @@ async function startServer() {
             });
           },
           onToolResult: (toolName, result, toolCallId) => {
+            const isStructured = result && typeof result === 'object' && 'resultType' in (result as Record<string, unknown>);
             socket.emit("tool-result", {
               sessionId: data.sessionId,
               toolName,
               result,
               toolCallId,
+              isStructured,
+              resultType: isStructured ? (result as Record<string, unknown>).resultType : undefined,
             });
           },
           onComplete: (fullContent) => {
@@ -535,6 +756,100 @@ async function startServer() {
         });
       } catch (error) {
         console.error(`❌ sendMessage 异常: [${data.sessionId}]`, error);
+      } finally {
+        clearUserInputHandler(data.sessionId);
+      }
+    }
+  );
+
+  // 同步发送消息（SendAndWait 模式）
+  socket.on(
+    "send-message-sync",
+    async (data: {
+      sessionId: string;
+      prompt: string;
+      model?: ModelId;
+      agentId?: string;
+      attachments?: Array<{
+        type: "file" | "directory";
+        path: string;
+        displayName?: string;
+      }>;
+      timeout?: number;
+    }) => {
+      console.log(`📨 [Sync] 收到消息: [${data.sessionId}] ${data.prompt.substring(0, 50)}...`);
+
+      socket.emit("message-start", {
+        sessionId: data.sessionId,
+        mode: "sync",
+      });
+
+      // Register user input handler (same pattern as streaming mode)
+      setUserInputHandler(data.sessionId, (request) => {
+        return new Promise((resolve) => {
+          socket.emit("user-input-request", {
+            sessionId: data.sessionId,
+            question: request.question,
+            choices: request.choices,
+            allowFreeform: request.allowFreeform ?? true,
+          });
+          socket.once(`user-input-response:${data.sessionId}`, (response: { answer: string; wasFreeform?: boolean }) => {
+            resolve({
+              answer: response.answer,
+              wasFreeform: response.wasFreeform ?? true,
+            });
+          });
+        });
+      });
+
+      try {
+        const result = await sendMessageSync({
+          sessionId: data.sessionId,
+          prompt: data.prompt,
+          model: data.model,
+          agentId: data.agentId,
+          attachments: data.attachments,
+          timeout: data.timeout,
+          onToolCall: (toolName, args, toolCallId) => {
+            socket.emit("tool-call", {
+              sessionId: data.sessionId,
+              toolName,
+              args,
+              toolCallId,
+            });
+          },
+          onToolResult: (toolName, result, toolCallId) => {
+            const isStructured = result && typeof result === 'object' && 'resultType' in (result as Record<string, unknown>);
+            socket.emit("tool-result", {
+              sessionId: data.sessionId,
+              toolName,
+              result,
+              toolCallId,
+              isStructured,
+              resultType: isStructured ? (result as Record<string, unknown>).resultType : undefined,
+            });
+          },
+          onError: (error) => {
+            socket.emit("message-error", {
+              sessionId: data.sessionId,
+              error: error.message,
+            });
+          },
+        });
+
+        socket.emit("message-complete", {
+          sessionId: data.sessionId,
+          content: result.content,
+          mode: "sync",
+          toolCalls: result.toolCalls,
+        });
+        console.log(`✅ [Sync] 消息完成: [${data.sessionId}]`);
+      } catch (error) {
+        console.error(`❌ [Sync] sendMessageSync 异常: [${data.sessionId}]`, error);
+        socket.emit("message-error", {
+          sessionId: data.sessionId,
+          error: error instanceof Error ? error.message : "同步消息发送失败",
+        });
       } finally {
         clearUserInputHandler(data.sessionId);
       }
@@ -578,7 +893,9 @@ httpServer.listen(PORT, () => {
 ║      • 会话管理（创建/恢复/删除）                      ║
 ║      • 多模型切换                                      ║
 ║      • 自定义工具调用                                  ║
-║      • 自定义 Agent 管理                               ║
+║      • SDK 原生 Custom Agent                           ║
+║      • MCP Server 集成                                 ║
+║      • Skills 技能系统                                 ║
 ║      • 动态工具配置                                    ║
 ║                                                        ║
 ╚════════════════════════════════════════════════════════╝

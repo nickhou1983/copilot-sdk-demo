@@ -1629,3 +1629,388 @@ body {
   font-size: 12px;
   margin: 8px 0;
 }
+
+/* ===== MCP 服务器卡片 ===== */
+.mcp-server-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mcp-server-card {
+  padding: 12px 16px;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: var(--transition);
+}
+
+.mcp-server-card.disabled {
+  opacity: 0.5;
+}
+
+.mcp-server-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mcp-server-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.mcp-server-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.mcp-server-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mcp-server-type-badge.local,
+.mcp-server-type-badge.stdio {
+  background-color: #ddf4ff;
+  color: #0969da;
+}
+
+.mcp-server-type-badge.http,
+.mcp-server-type-badge.sse {
+  background-color: #dafbe1;
+  color: #1a7f37;
+}
+
+.mcp-server-scope {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background-color: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+.mcp-server-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mcp-server-detail {
+  margin-top: 8px;
+}
+
+.mcp-server-detail code {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== Toggle Switch ===== */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-color);
+  border-radius: 10px;
+  transition: 0.2s;
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--success-color);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(16px);
+}
+
+/* ===== Skills 卡片 ===== */
+.skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skill-card {
+  padding: 12px 16px;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: var(--transition);
+}
+
+.skill-card.disabled {
+  opacity: 0.5;
+}
+
+.skill-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.skill-info {
+  flex: 1;
+}
+
+.skill-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-right: 8px;
+}
+
+.skill-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.skill-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skill-meta {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ===== Skills 目录 ===== */
+.skills-directories {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.skills-directories h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.skill-dir-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+}
+
+.skill-dir-item code {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.skill-dir-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.skill-dir-add input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+/* ===== Checkbox Label ===== */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.checkbox-label small {
+  color: var(--text-muted);
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.checkbox-item:hover {
+  background-color: var(--bg-color);
+}
+
+.checkbox-item small {
+  color: var(--text-muted);
+}
+
+/* ===== Empty State Icon ===== */
+.empty-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.empty-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ===== Form Warning ===== */
+.form-warning {
+  color: #d97706;
+  font-size: 12px;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: #fffbeb;
+  border-radius: 4px;
+}
+
+/* ===== Sync Toggle ===== */
+.sync-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.sync-toggle input {
+  margin: 0;
+}
+
+.sync-toggle input:checked + .sync-label {
+  color: var(--primary-color, #6366f1);
+  font-weight: 600;
+}
+
+.sync-label {
+  font-size: 12px;
+}
+
+/* ===== Structured Tool Result ===== */
+.tool-result-structured {
+  border-left: 3px solid;
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 4px;
+  background: var(--bg-secondary, #f8f9fa);
+}
+
+.tool-result-success {
+  border-left-color: #22c55e;
+}
+
+.tool-result-failure {
+  border-left-color: #ef4444;
+}
+
+.tool-result-rejected {
+  border-left-color: #f59e0b;
+}
+
+.tool-result-denied {
+  border-left-color: #dc2626;
+}
+
+.tool-result-status {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tool-result-error-msg {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.tool-binary-image {
+  max-width: 300px;
+  max-height: 200px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.tool-binary-info {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.tool-result-log {
+  margin-top: 4px;
+}
+
+.tool-result-log summary {
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.tool-result-log pre {
+  font-size: 11px;
+  max-height: 200px;
+  overflow: auto;
+  padding: 8px;
+  background: var(--bg-color, #fff);
+  border-radius: 4px;
+  margin-top: 4px;
+}

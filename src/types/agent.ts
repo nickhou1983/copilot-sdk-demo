@@ -1,5 +1,5 @@
 /**
- * Agent and Tool type definitions
+ * Agent, Tool, MCP, and Skill type definitions
  */
 
 // ===============================
@@ -52,6 +52,12 @@ export interface CustomToolConfig {
   handlerConfig: HttpHandlerConfig | JavaScriptHandlerConfig;
   enabled: boolean;
   groupId?: string;
+  // Result enhancement configuration
+  resultConfig?: {
+    useStructuredResult?: boolean;   // Return ToolResultObject instead of plain string
+    binaryResultPath?: string;       // JSONPath to extract base64 data from response
+    binaryMimeType?: string;         // MIME type for binary results
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -80,33 +86,140 @@ export interface BuiltinToolInfo {
 }
 
 // ===============================
-// Agent Types
+// Tool Result Types (SDK-aligned)
+// ===============================
+
+export type ToolResultType = "success" | "failure" | "rejected" | "denied";
+
+export interface ToolBinaryResult {
+  data: string;           // Base64 encoded binary data
+  mimeType: string;       // e.g. "image/png"
+  type: string;           // Custom type identifier
+  description?: string;
+}
+
+export interface ToolResultObject {
+  textResultForLlm: string;
+  binaryResultsForLlm?: ToolBinaryResult[];
+  resultType: ToolResultType;
+  error?: string;
+  sessionLog?: string;
+  toolTelemetry?: Record<string, unknown>;
+}
+
+export type ToolResult = string | ToolResultObject;
+
+// ===============================
+// System Message Types
 // ===============================
 
 /**
- * Agent configuration
+ * System message storage config
+ * Maps to SDK SystemMessageAppendConfig | SystemMessageReplaceConfig
  */
-export interface AgentConfig {
+export interface SystemMessageStorageConfig {
+  mode: "append" | "replace";
+  content: string;
+}
+
+// ===============================
+// MCP Server Types
+// ===============================
+
+/**
+ * MCP server storage configuration
+ * Maps to SDK MCPLocalServerConfig | MCPRemoteServerConfig
+ */
+export interface MCPServerStorageConfig {
   id: string;
   name: string;
-  description: string;
-  systemPrompt: string; // Will be injected as message prefix
-  toolGroupIds: string[]; // Tool groups this agent has access to
-  enabledBuiltinTools: string[]; // IDs of builtin tools to enable
-  enabledCustomTools: string[]; // IDs of custom tools to enable
-  preferredModel?: string; // Default model for this agent
-  icon?: string; // Emoji or icon identifier
-  color?: string; // Theme color
-  isDefault?: boolean; // Is this the default agent
+  type: "local" | "stdio" | "http" | "sse";
+  // local/stdio fields
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+  // remote fields
+  url?: string;
+  headers?: Record<string, string>;
+  // common
+  tools: string[];
+  timeout?: number;
+  enabled: boolean;
+  scope: "global" | "agent";
+  agentId?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 /**
- * Agent with resolved tools (runtime use)
+ * MCP servers data file structure
+ */
+export interface MCPServersDataFile {
+  version: string;
+  servers: MCPServerStorageConfig[];
+}
+
+// ===============================
+// Agent Types (SDK-native aligned)
+// ===============================
+
+/**
+ * Agent configuration
+ * Core fields align with SDK CustomAgentConfig
+ */
+export interface AgentConfig {
+  id: string;
+  name: string;              // SDK CustomAgentConfig.name
+  displayName: string;       // SDK CustomAgentConfig.displayName
+  description: string;       // SDK CustomAgentConfig.description
+  prompt: string;            // SDK CustomAgentConfig.prompt
+  systemMessage?: SystemMessageStorageConfig; // Session-level system message config
+  tools?: string[] | null;   // SDK CustomAgentConfig.tools (tool names, null=all)
+  mcpServerIds?: string[];   // References to MCPServerStorageConfig IDs
+  infer?: boolean;           // SDK CustomAgentConfig.infer
+  // UI metadata
+  preferredModel?: string;
+  icon?: string;
+  color?: string;
+  isDefault?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Agent with resolved tools (runtime use) - kept for backward compat
  */
 export interface ResolvedAgent extends AgentConfig {
-  tools: unknown[]; // Actual tool instances
+  resolvedTools: unknown[];
+}
+
+// ===============================
+// Skills Types
+// ===============================
+
+/**
+ * Single skill info (derived from file scan)
+ */
+export interface SkillInfo {
+  id: string;
+  name: string;
+  description: string;
+  filename: string;
+  directory: string;
+  content: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Skills configuration data file
+ */
+export interface SkillsConfig {
+  version: string;
+  directories: string[];
+  disabledSkills: string[];
 }
 
 // ===============================
@@ -146,11 +259,13 @@ export interface ToolGroupsDataFile {
  */
 export interface CreateAgentRequest {
   name: string;
+  displayName?: string;
   description?: string;
-  systemPrompt?: string;
-  toolGroupIds?: string[];
-  enabledBuiltinTools?: string[];
-  enabledCustomTools?: string[];
+  prompt?: string;
+  systemMessage?: SystemMessageStorageConfig;
+  tools?: string[] | null;
+  mcpServerIds?: string[];
+  infer?: boolean;
   preferredModel?: string;
   icon?: string;
   color?: string;
@@ -198,4 +313,30 @@ export interface CreateToolGroupRequest {
  */
 export interface UpdateToolGroupRequest extends Partial<CreateToolGroupRequest> {
   id: string;
+}
+
+/**
+ * Create MCP server request
+ */
+export interface CreateMCPServerRequest {
+  name: string;
+  type: "local" | "stdio" | "http" | "sse";
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+  url?: string;
+  headers?: Record<string, string>;
+  tools?: string[];
+  timeout?: number;
+  scope?: "global" | "agent";
+  agentId?: string;
+}
+
+/**
+ * Update MCP server request
+ */
+export interface UpdateMCPServerRequest extends Partial<CreateMCPServerRequest> {
+  id: string;
+  enabled?: boolean;
 }

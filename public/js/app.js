@@ -52,6 +52,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (window.toolManager) {
     window.toolManager.init(state.socket);
   }
+  // 初始化 MCP 和 Skills 管理器
+  if (typeof MCPManager !== 'undefined') {
+    mcpManager = new MCPManager(state.socket);
+  }
+  if (typeof SkillManager !== 'undefined') {
+    skillManager = new SkillManager(state.socket);
+  }
 });
 
 function initElements() {
@@ -308,7 +315,10 @@ function sendMessage() {
 function sendMessageToSession(sessionId, prompt, attachments, model) {
   // 获取当前选中的 Agent
   const agentId = window.agentManager?.getCurrentAgentId();
-  state.socket.emit("send-message", {
+  const syncMode = document.getElementById('sync-mode-toggle')?.checked || false;
+  const eventName = syncMode ? 'send-message-sync' : 'send-message';
+
+  state.socket.emit(eventName, {
     sessionId,
     prompt,
     model,
@@ -417,23 +427,37 @@ function handleReasoningDelta(data) {
 
 function handleMessageComplete(data) {
   if (data.sessionId !== state.currentSessionId) return;
-  
+
   state.isProcessing = false;
   updateSendButton();
-  
+
+  // Sync mode: no prior deltas, render full content now
+  if (data.mode === "sync" && data.content) {
+    const messageId = state.activeMessageId;
+    if (messageId) {
+      const messageEl = document.getElementById(messageId);
+      if (messageEl) {
+        const contentEl = messageEl.querySelector(".assistant-content");
+        if (contentEl) {
+          contentEl.innerHTML = renderMarkdown(data.content);
+        }
+      }
+    }
+  }
+
   // 清理消息状态
   const messageId = state.activeMessageId;
   if (messageId) {
     state.messageStates.delete(messageId);
     state.activeMessageId = null;
   }
-  
+
   // 保存到消息历史
   state.messages.push({
     role: "assistant",
     content: data.content,
   });
-  
+
   // 更新会话消息数
   refreshSessions();
 }
@@ -498,18 +522,22 @@ function handleToolResult(data) {
     if (toolCallEl) {
       const statusEl = toolCallEl.querySelector(".tool-call-status");
       if (statusEl) {
-        // 检查是否是错误结果
-        const isError = data.result && data.result.error;
-        const resultPreview = formatToolResult(data.result);
-        
-        if (isError) {
+        // Structured result (ToolResultObject)
+        if (data.isStructured && data.result && typeof data.result === 'object') {
+          statusEl.outerHTML = renderStructuredToolResult(data.result);
+        }
+        // Legacy: plain error check
+        else if (data.result && data.result.error) {
           statusEl.outerHTML = `
             <div class="tool-call-result tool-call-error">
               <span class="tool-result-label">❌ 失败</span>
               <span class="tool-result-preview">${escapeHtml(data.result.error)}</span>
             </div>
           `;
-        } else {
+        }
+        // Legacy: plain string result
+        else {
+          const resultPreview = formatToolResult(data.result);
           statusEl.outerHTML = `
             <div class="tool-call-result">
               <span class="tool-result-label">✅ 完成</span>
@@ -521,6 +549,49 @@ function handleToolResult(data) {
     }
     scrollToBottom();
   }
+}
+
+function renderStructuredToolResult(result) {
+  const statusIcons = { success: '✅', failure: '❌', rejected: '🚫', denied: '⛔' };
+  const statusLabels = { success: '成功', failure: '失败', rejected: '已拒绝', denied: '已禁止' };
+  const icon = statusIcons[result.resultType] || '✅';
+  const label = statusLabels[result.resultType] || result.resultType;
+  const cssClass = `tool-result-${result.resultType || 'success'}`;
+
+  let html = `<div class="tool-call-result tool-result-structured ${cssClass}">`;
+  html += `<div class="tool-result-status">${icon} ${label}</div>`;
+
+  // Text preview
+  if (result.textResultForLlm) {
+    const preview = result.textResultForLlm.length > 200
+      ? result.textResultForLlm.substring(0, 200) + '...'
+      : result.textResultForLlm;
+    html += `<span class="tool-result-preview">${escapeHtml(preview)}</span>`;
+  }
+
+  // Error
+  if (result.error) {
+    html += `<div class="tool-result-error-msg">${escapeHtml(result.error)}</div>`;
+  }
+
+  // Binary results (image preview)
+  if (result.binaryResultsForLlm?.length) {
+    result.binaryResultsForLlm.forEach(bin => {
+      if (bin.mimeType?.startsWith('image/')) {
+        html += `<img class="tool-binary-image" src="data:${bin.mimeType};base64,${bin.data}" alt="${escapeHtml(bin.description || 'Binary result')}" />`;
+      } else {
+        html += `<div class="tool-binary-info">📦 ${escapeHtml(bin.mimeType)} (${escapeHtml(bin.type)})</div>`;
+      }
+    });
+  }
+
+  // Session log (collapsible)
+  if (result.sessionLog) {
+    html += `<details class="tool-result-log"><summary>执行日志</summary><pre>${escapeHtml(result.sessionLog)}</pre></details>`;
+  }
+
+  html += '</div>';
+  return html;
 }
 
 function formatToolResult(result) {
@@ -843,24 +914,29 @@ function switchTab(tabId) {
   // 移除所有 tab 的 active 状态
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-  
+
   // 激活选中的 tab
   const tab = document.getElementById(tabId);
   if (tab) {
     tab.classList.add('active');
     // 找到对应的按钮并激活
-    const btnIndex = ['agents-tab', 'tools-tab', 'groups-tab'].indexOf(tabId);
+    const tabIds = ['agents-tab', 'tools-tab', 'groups-tab', 'mcp-tab', 'skills-tab'];
+    const btnIndex = tabIds.indexOf(tabId);
     const btns = document.querySelectorAll('.modal-tabs .tab-btn');
     if (btns[btnIndex]) {
       btns[btnIndex].classList.add('active');
     }
   }
-  
-  // 刷新工具列表
+
+  // 刷新对应 tab 的数据
   if (tabId === 'tools-tab') {
     state.socket.emit('list-tools');
   } else if (tabId === 'groups-tab') {
     state.socket.emit('list-tool-groups');
+  } else if (tabId === 'mcp-tab') {
+    if (mcpManager) mcpManager.loadServers();
+  } else if (tabId === 'skills-tab') {
+    if (skillManager) skillManager.loadSkills();
   }
 }
 
@@ -874,3 +950,4 @@ document.addEventListener('click', (e) => {
 window.openSettingsModal = openSettingsModal;
 window.closeSettingsModal = closeSettingsModal;
 window.switchTab = switchTab;
+window.showToast = window.agentManager?.showToast;

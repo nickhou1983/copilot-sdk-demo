@@ -1,8 +1,9 @@
 /**
  * Agent Manager Service
- * Manages agent configurations and provides runtime agent resolution
+ * Manages agent configurations and converts to SDK-native CustomAgentConfig
  */
 
+import type { CustomAgentConfig } from "@github/copilot-sdk";
 import {
   loadAgents,
   getAgent,
@@ -11,23 +12,43 @@ import {
   deleteAgent as deleteAgentFromStorage,
   generateId,
 } from "./storage.js";
-import { getToolsForAgent } from "./toolRegistry.js";
+import { getMCPServersByIds } from "./mcpManager.js";
 import type {
   AgentConfig,
-  ResolvedAgent,
   CreateAgentRequest,
   UpdateAgentRequest,
 } from "../types/agent.js";
 
 /**
- * System prompt injection format
- * This is prepended to the user's first message in a session
+ * Convert an AgentConfig to SDK-native CustomAgentConfig
  */
-const SYSTEM_PROMPT_TEMPLATE = `[System Instructions]
-{systemPrompt}
+export function convertToSDKAgent(agent: AgentConfig): CustomAgentConfig {
+  const sdkAgent: CustomAgentConfig = {
+    name: agent.name,
+    displayName: agent.displayName || agent.name,
+    description: agent.description || "",
+    prompt: agent.prompt || "",
+    tools: agent.tools ?? undefined,
+    infer: agent.infer ?? true,
+  };
 
-[User Message]
-{userMessage}`;
+  // Attach MCP servers if configured
+  if (agent.mcpServerIds && agent.mcpServerIds.length > 0) {
+    sdkAgent.mcpServers = getMCPServersByIds(agent.mcpServerIds);
+  }
+
+  return sdkAgent;
+}
+
+/**
+ * Get all agents as SDK-native CustomAgentConfig array
+ */
+export function getAllSDKAgents(): CustomAgentConfig[] {
+  const agents = loadAgents();
+  return agents
+    .filter((a) => a.prompt && a.prompt.trim() !== "")
+    .map(convertToSDKAgent);
+}
 
 /**
  * Get all agents
@@ -51,73 +72,6 @@ export function getDefaultAgentConfig(): AgentConfig {
 }
 
 /**
- * Resolve an agent with its tools loaded
- */
-export function resolveAgent(agentId: string): ResolvedAgent | undefined {
-  const agent = getAgent(agentId);
-  if (!agent) {
-    return undefined;
-  }
-
-  const tools = getToolsForAgent(
-    agent.enabledBuiltinTools,
-    agent.enabledCustomTools,
-    agent.toolGroupIds
-  );
-
-  return {
-    ...agent,
-    tools,
-  };
-}
-
-/**
- * Resolve the default agent with its tools loaded
- */
-export function resolveDefaultAgent(): ResolvedAgent {
-  const agent = getDefaultAgent();
-  const tools = getToolsForAgent(
-    agent.enabledBuiltinTools,
-    agent.enabledCustomTools,
-    agent.toolGroupIds
-  );
-
-  return {
-    ...agent,
-    tools,
-  };
-}
-
-/**
- * Inject system prompt into user message
- * Returns the modified message if agent has a system prompt, otherwise returns original
- */
-export function injectSystemPrompt(userMessage: string, agentId?: string): string {
-  const agent = agentId ? getAgent(agentId) : getDefaultAgent();
-
-  if (!agent || !agent.systemPrompt || agent.systemPrompt.trim() === "") {
-    return userMessage;
-  }
-
-  return SYSTEM_PROMPT_TEMPLATE
-    .replace("{systemPrompt}", agent.systemPrompt.trim())
-    .replace("{userMessage}", userMessage);
-}
-
-/**
- * Check if a message should have system prompt injected
- * (Only inject for the first message or when explicitly requested)
- */
-export function shouldInjectSystemPrompt(agentId: string, isFirstMessage: boolean): boolean {
-  if (!isFirstMessage) {
-    return false;
-  }
-
-  const agent = getAgent(agentId);
-  return !!agent?.systemPrompt && agent.systemPrompt.trim() !== "";
-}
-
-/**
  * Create a new agent
  */
 export function createAgent(request: CreateAgentRequest): AgentConfig {
@@ -126,11 +80,13 @@ export function createAgent(request: CreateAgentRequest): AgentConfig {
   const agent: AgentConfig = {
     id: generateId("agent"),
     name: request.name,
+    displayName: request.displayName || request.name,
     description: request.description || "",
-    systemPrompt: request.systemPrompt || "",
-    toolGroupIds: request.toolGroupIds || [],
-    enabledBuiltinTools: request.enabledBuiltinTools || [],
-    enabledCustomTools: request.enabledCustomTools || [],
+    prompt: request.prompt || "",
+    systemMessage: request.systemMessage,
+    tools: request.tools ?? null,
+    mcpServerIds: request.mcpServerIds || [],
+    infer: request.infer ?? true,
     preferredModel: request.preferredModel,
     icon: request.icon || "🤖",
     color: request.color || "#6366f1",
@@ -154,11 +110,13 @@ export function updateAgent(request: UpdateAgentRequest): AgentConfig {
   const updated: AgentConfig = {
     ...existing,
     name: request.name ?? existing.name,
+    displayName: request.displayName ?? existing.displayName,
     description: request.description ?? existing.description,
-    systemPrompt: request.systemPrompt ?? existing.systemPrompt,
-    toolGroupIds: request.toolGroupIds ?? existing.toolGroupIds,
-    enabledBuiltinTools: request.enabledBuiltinTools ?? existing.enabledBuiltinTools,
-    enabledCustomTools: request.enabledCustomTools ?? existing.enabledCustomTools,
+    prompt: request.prompt ?? existing.prompt,
+    systemMessage: request.systemMessage !== undefined ? request.systemMessage : existing.systemMessage,
+    tools: request.tools !== undefined ? request.tools : existing.tools,
+    mcpServerIds: request.mcpServerIds ?? existing.mcpServerIds,
+    infer: request.infer ?? existing.infer,
     preferredModel: request.preferredModel ?? existing.preferredModel,
     icon: request.icon ?? existing.icon,
     color: request.color ?? existing.color,
@@ -180,7 +138,7 @@ export function deleteAgentById(id: string): boolean {
  */
 export function setDefaultAgent(id: string): AgentConfig {
   const agents = loadAgents();
-  const targetAgent = agents.find(a => a.id === id);
+  const targetAgent = agents.find((a) => a.id === id);
 
   if (!targetAgent) {
     throw new Error(`Agent not found: ${id}`);
@@ -212,27 +170,16 @@ export function validateAgentConfig(config: Partial<CreateAgentRequest>): string
     errors.push("Agent名称不能超过50个字符");
   }
 
-  if (config.systemPrompt && config.systemPrompt.length > 10000) {
-    errors.push("系统提示词不能超过10000个字符");
+  if (config.prompt && config.prompt.length > 10000) {
+    errors.push("Agent Prompt不能超过10000个字符");
+  }
+
+  // Validate name format (for SDK compatibility)
+  if (config.name && !/^[a-zA-Z0-9_-]+$/.test(config.name)) {
+    errors.push("Agent名称只能包含字母、数字、下划线和连字符");
   }
 
   return errors;
-}
-
-/**
- * Get tools for a specific agent
- */
-export function getAgentTools(agentId: string): unknown[] {
-  const agent = getAgent(agentId);
-  if (!agent) {
-    return [];
-  }
-
-  return getToolsForAgent(
-    agent.enabledBuiltinTools,
-    agent.enabledCustomTools,
-    agent.toolGroupIds
-  );
 }
 
 /**

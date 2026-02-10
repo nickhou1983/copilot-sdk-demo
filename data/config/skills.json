@@ -1,0 +1,8 @@
+{
+  "version": "1.0",
+  "directories": [
+    "/Users/qifenghou/Codes/copilot-sdk-demo/data/skills",
+    "/Users/qifenghou/.claude/skills"
+  ],
+  "disabledSkills": []
+}

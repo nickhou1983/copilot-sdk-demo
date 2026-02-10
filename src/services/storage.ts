@@ -1,5 +1,5 @@
 /**
- * JSON file storage service for agents and tools
+ * JSON file storage service for agents, tools, MCP servers, and skills
  */
 
 import fs from "fs";
@@ -12,6 +12,9 @@ import type {
   CustomToolsDataFile,
   ToolGroup,
   ToolGroupsDataFile,
+  MCPServerStorageConfig,
+  MCPServersDataFile,
+  SkillsConfig,
 } from "../types/agent.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,11 +25,16 @@ const DATA_DIR = path.join(__dirname, "../../data");
 const AGENTS_FILE = path.join(DATA_DIR, "agents", "agents.json");
 const CUSTOM_TOOLS_FILE = path.join(DATA_DIR, "tools", "custom.json");
 const TOOL_GROUPS_FILE = path.join(DATA_DIR, "config", "toolGroups.json");
+const MCP_SERVERS_FILE = path.join(DATA_DIR, "config", "mcpServers.json");
+const SKILLS_CONFIG_FILE = path.join(DATA_DIR, "config", "skills.json");
+const DEFAULT_SKILLS_DIR = path.join(DATA_DIR, "skills");
 
 // Current data versions
-const AGENTS_VERSION = "1.0";
+const AGENTS_VERSION = "2.0";
 const TOOLS_VERSION = "1.0";
 const GROUPS_VERSION = "1.0";
+const MCP_VERSION = "1.0";
+const SKILLS_VERSION = "1.0";
 
 /**
  * Ensure directory exists
@@ -72,12 +80,13 @@ function getDefaultAgents(): AgentsDataFile {
     agents: [
       {
         id: "default",
-        name: "通用助手",
+        name: "general-assistant",
+        displayName: "通用助手",
         description: "默认的通用 AI 助手",
-        systemPrompt: "",
-        toolGroupIds: ["default"],
-        enabledBuiltinTools: ["get_current_time", "calculate", "get_weather", "process_text"],
-        enabledCustomTools: [],
+        prompt: "",
+        tools: null,
+        mcpServerIds: [],
+        infer: true,
         icon: "🤖",
         color: "#6366f1",
         isDefault: true,
@@ -86,17 +95,18 @@ function getDefaultAgents(): AgentsDataFile {
       },
       {
         id: "coder",
-        name: "代码助手",
+        name: "code-assistant",
+        displayName: "代码助手",
         description: "专注于编程和代码相关任务的助手",
-        systemPrompt: `你是一个专业的编程助手。请遵循以下原则：
+        prompt: `你是一个专业的编程助手。请遵循以下原则：
 1. 提供清晰、可维护的代码
 2. 解释代码的工作原理
 3. 遵循最佳实践和设计模式
 4. 考虑性能和安全性
 5. 使用适当的错误处理`,
-        toolGroupIds: ["default"],
-        enabledBuiltinTools: ["calculate"],
-        enabledCustomTools: [],
+        tools: null,
+        mcpServerIds: [],
+        infer: true,
         preferredModel: "claude-sonnet-4",
         icon: "👨‍💻",
         color: "#10b981",
@@ -105,17 +115,18 @@ function getDefaultAgents(): AgentsDataFile {
       },
       {
         id: "translator",
-        name: "翻译助手",
+        name: "translator-assistant",
+        displayName: "翻译助手",
         description: "专业的多语言翻译助手",
-        systemPrompt: `你是一个专业的翻译助手。请遵循以下原则：
+        prompt: `你是一个专业的翻译助手。请遵循以下原则：
 1. 保持原文的意思和语气
 2. 使用自然流畅的目标语言表达
 3. 注意文化差异和习语翻译
 4. 对于专业术语，提供解释
 5. 如果原文有歧义，说明并提供多种翻译`,
-        toolGroupIds: [],
-        enabledBuiltinTools: ["process_text"],
-        enabledCustomTools: [],
+        tools: ["process_text"],
+        mcpServerIds: [],
+        infer: true,
         preferredModel: "gpt-4o",
         icon: "🌐",
         color: "#f59e0b",
@@ -124,9 +135,10 @@ function getDefaultAgents(): AgentsDataFile {
       },
       {
         id: "planner",
-        name: "计划助手",
+        name: "planner-assistant",
+        displayName: "计划助手",
         description: "专业的计划和任务分解助手",
-        systemPrompt: `你是一个专业的计划制定助手。请遵循以下原则：
+        prompt: `你是一个专业的计划制定助手。请遵循以下原则：
 
 1. **理解目标**：首先充分理解用户的最终目标和约束条件
 
@@ -154,9 +166,9 @@ function getDefaultAgents(): AgentsDataFile {
 6. **风险预案**：
    - 识别可能的阻碍和风险
    - 为关键节点准备 B 计划`,
-        toolGroupIds: [],
-        enabledBuiltinTools: ["get_current_time", "calculate"],
-        enabledCustomTools: [],
+        tools: ["get_current_time", "calculate"],
+        mcpServerIds: [],
+        infer: true,
         preferredModel: "claude-sonnet-4",
         icon: "📋",
         color: "#8b5cf6",
@@ -201,6 +213,21 @@ function getDefaultCustomTools(): CustomToolsDataFile {
   };
 }
 
+function getDefaultMCPServers(): MCPServersDataFile {
+  return {
+    version: MCP_VERSION,
+    servers: [],
+  };
+}
+
+function getDefaultSkillsConfig(): SkillsConfig {
+  return {
+    version: SKILLS_VERSION,
+    directories: [DEFAULT_SKILLS_DIR],
+    disabledSkills: [],
+  };
+}
+
 // ===============================
 // Initialization
 // ===============================
@@ -213,6 +240,13 @@ export function initializeStorage(): void {
   ensureDir(AGENTS_FILE);
   ensureDir(CUSTOM_TOOLS_FILE);
   ensureDir(TOOL_GROUPS_FILE);
+  ensureDir(MCP_SERVERS_FILE);
+  ensureDir(SKILLS_CONFIG_FILE);
+
+  // Ensure default skills directory exists
+  if (!fs.existsSync(DEFAULT_SKILLS_DIR)) {
+    fs.mkdirSync(DEFAULT_SKILLS_DIR, { recursive: true });
+  }
 
   // Create default files if they don't exist
   if (!fs.existsSync(AGENTS_FILE)) {
@@ -228,6 +262,16 @@ export function initializeStorage(): void {
   if (!fs.existsSync(CUSTOM_TOOLS_FILE)) {
     writeJsonFile(CUSTOM_TOOLS_FILE, getDefaultCustomTools());
     console.log("Created default custom tools configuration");
+  }
+
+  if (!fs.existsSync(MCP_SERVERS_FILE)) {
+    writeJsonFile(MCP_SERVERS_FILE, getDefaultMCPServers());
+    console.log("Created default MCP servers configuration");
+  }
+
+  if (!fs.existsSync(SKILLS_CONFIG_FILE)) {
+    writeJsonFile(SKILLS_CONFIG_FILE, getDefaultSkillsConfig());
+    console.log("Created default skills configuration");
   }
 }
 
@@ -406,6 +450,140 @@ export function deleteToolGroup(id: string): boolean {
     return true;
   }
   return false;
+}
+
+// ===============================
+// MCP Server Operations
+// ===============================
+
+/**
+ * Load all MCP servers
+ */
+export function loadMCPServers(): MCPServerStorageConfig[] {
+  const data = readJsonFile<MCPServersDataFile>(MCP_SERVERS_FILE, getDefaultMCPServers());
+  return data.servers;
+}
+
+/**
+ * Get MCP server by ID
+ */
+export function getMCPServer(id: string): MCPServerStorageConfig | undefined {
+  const servers = loadMCPServers();
+  return servers.find((s) => s.id === id);
+}
+
+/**
+ * Save MCP server (create or update)
+ */
+export function saveMCPServer(server: MCPServerStorageConfig): MCPServerStorageConfig {
+  const data = readJsonFile<MCPServersDataFile>(MCP_SERVERS_FILE, getDefaultMCPServers());
+  const existingIndex = data.servers.findIndex((s) => s.id === server.id);
+
+  server.updatedAt = new Date().toISOString();
+
+  if (existingIndex >= 0) {
+    data.servers[existingIndex] = server;
+  } else {
+    server.createdAt = server.updatedAt;
+    data.servers.push(server);
+  }
+
+  writeJsonFile(MCP_SERVERS_FILE, data);
+  return server;
+}
+
+/**
+ * Delete MCP server
+ */
+export function deleteMCPServer(id: string): boolean {
+  const data = readJsonFile<MCPServersDataFile>(MCP_SERVERS_FILE, getDefaultMCPServers());
+  const index = data.servers.findIndex((s) => s.id === id);
+
+  if (index >= 0) {
+    data.servers.splice(index, 1);
+    writeJsonFile(MCP_SERVERS_FILE, data);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Get MCP servers for a specific agent (global + agent-scoped)
+ */
+export function getMCPServersForAgent(agentId?: string): MCPServerStorageConfig[] {
+  const servers = loadMCPServers().filter((s) => s.enabled);
+  if (!agentId) {
+    return servers.filter((s) => s.scope === "global");
+  }
+  return servers.filter((s) => s.scope === "global" || (s.scope === "agent" && s.agentId === agentId));
+}
+
+// ===============================
+// Skills Operations
+// ===============================
+
+/**
+ * Load skills configuration
+ */
+export function loadSkillsConfig(): SkillsConfig {
+  return readJsonFile<SkillsConfig>(SKILLS_CONFIG_FILE, getDefaultSkillsConfig());
+}
+
+/**
+ * Save skills configuration
+ */
+export function saveSkillsConfig(config: SkillsConfig): void {
+  writeJsonFile(SKILLS_CONFIG_FILE, config);
+}
+
+/**
+ * Add a skill directory
+ */
+export function addSkillDirectory(dir: string): SkillsConfig {
+  const config = loadSkillsConfig();
+  const absDir = path.isAbsolute(dir) ? dir : path.resolve(DATA_DIR, "..", dir);
+  if (!config.directories.includes(absDir)) {
+    config.directories.push(absDir);
+    // Ensure directory exists
+    if (!fs.existsSync(absDir)) {
+      fs.mkdirSync(absDir, { recursive: true });
+    }
+    saveSkillsConfig(config);
+  }
+  return config;
+}
+
+/**
+ * Remove a skill directory
+ */
+export function removeSkillDirectory(dir: string): SkillsConfig {
+  const config = loadSkillsConfig();
+  config.directories = config.directories.filter((d) => d !== dir);
+  saveSkillsConfig(config);
+  return config;
+}
+
+/**
+ * Toggle a skill (add/remove from disabledSkills)
+ */
+export function toggleSkill(skillName: string, enabled: boolean): SkillsConfig {
+  const config = loadSkillsConfig();
+  if (enabled) {
+    config.disabledSkills = config.disabledSkills.filter((s) => s !== skillName);
+  } else {
+    if (!config.disabledSkills.includes(skillName)) {
+      config.disabledSkills.push(skillName);
+    }
+  }
+  saveSkillsConfig(config);
+  return config;
+}
+
+/**
+ * Get default skills directory path
+ */
+export function getDefaultSkillsDir(): string {
+  return DEFAULT_SKILLS_DIR;
 }
 
 // ===============================

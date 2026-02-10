@@ -497,6 +497,16 @@ function confirmDeleteToolGroup(groupId) {
   }
 }
 
+/**
+ * Toggle result config fields visibility
+ */
+function toggleResultConfig(checked) {
+  const group = document.getElementById('tool-result-config-group');
+  if (group) {
+    group.style.display = checked ? 'block' : 'none';
+  }
+}
+
 // Export functions for global access
 window.toolManager = {
   init: initToolManager,
@@ -511,5 +521,6 @@ window.toolManager = {
   openCreateToolGroupModal,
   confirmDeleteToolGroup,
   updateHandlerConfigUI,
+  toggleResultConfig,
   state: toolState,
 };

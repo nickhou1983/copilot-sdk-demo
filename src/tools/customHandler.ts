@@ -9,6 +9,8 @@ import type {
   HttpHandlerConfig,
   JavaScriptHandlerConfig,
   ToolParameter,
+  ToolResultObject,
+  ToolResultType,
 } from "../types/agent.js";
 
 /**
@@ -197,6 +199,56 @@ function createJavaScriptHandler(config: JavaScriptHandlerConfig) {
 }
 
 /**
+ * Wrap raw tool result into a ToolResultObject if structured results are enabled
+ */
+function wrapToolResult(rawResult: unknown, config: CustomToolConfig): string | ToolResultObject {
+  // If structured results not enabled, return as string (backward compatible)
+  if (!config.resultConfig?.useStructuredResult) {
+    return typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult);
+  }
+
+  const isError = rawResult && typeof rawResult === 'object' && 'error' in (rawResult as Record<string, unknown>);
+  const resultType: ToolResultType = isError ? "failure" : "success";
+  const textResult = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult, null, 2);
+
+  const result: ToolResultObject = {
+    textResultForLlm: textResult,
+    resultType,
+    toolTelemetry: {
+      toolId: config.id,
+      toolName: config.name,
+      handlerType: config.handlerType,
+      timestamp: new Date().toISOString(),
+    },
+  };
+
+  if (isError) {
+    result.error = String((rawResult as Record<string, unknown>).error);
+  }
+
+  // Extract binary data if configured
+  if (config.resultConfig.binaryResultPath && rawResult && typeof rawResult === 'object') {
+    const parts = config.resultConfig.binaryResultPath.split(".");
+    let binaryData: unknown = rawResult;
+    for (const part of parts) {
+      if (binaryData && typeof binaryData === "object") {
+        binaryData = (binaryData as Record<string, unknown>)[part];
+      }
+    }
+    if (typeof binaryData === "string" && binaryData.length > 0) {
+      result.binaryResultsForLlm = [{
+        data: binaryData,
+        mimeType: config.resultConfig.binaryMimeType || "application/octet-stream",
+        type: "binary",
+        description: `Binary result from ${config.name}`,
+      }];
+    }
+  }
+
+  return result;
+}
+
+/**
  * Create a tool instance from configuration
  */
 export function createToolFromConfig(config: CustomToolConfig): unknown {
@@ -220,11 +272,17 @@ export function createToolFromConfig(config: CustomToolConfig): unknown {
       handler = async () => ({ error: "未知的处理器类型" });
   }
 
+  // Wrap handler with result enhancement
+  const wrappedHandler = async (args: unknown) => {
+    const raw = await handler(args);
+    return wrapToolResult(raw, config);
+  };
+
   // Create and return the tool
   return defineTool(config.name, {
     description: config.description,
     parameters: schema as any,
-    handler: handler,
+    handler: wrappedHandler as any,
   });
 }
 
