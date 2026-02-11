@@ -1,39 +1,73 @@
 # Project Guidelines
 
-## Code Style
-- 使用 TypeScript，遵循严格类型检查，参考 [src/server.ts]、[src/copilot.ts]。
-- 统一使用 2 空格缩进，单引号为主，分号可选但推荐统一。
-- 前端为原生 JS/CSS/HTML，结构清晰，样式集中于 [public/css/style.css]。
-- 代码注释以英文为主，必要时可用中文补充说明。
+Full-stack AI conversation platform on `@github/copilot-sdk`. TypeScript backend (Node.js 18+, Express, Socket.io), vanilla JS frontend.
+
+## Build & Run
+
+```bash
+npm install && npm run dev   # Dev server with hot-reload (tsx watch)
+npm run build && npm start   # Production (tsc → dist/)
+COPILOT_LOG_LEVEL=debug npm run dev  # Verbose SDK event logging
+```
+
+Prerequisite: `gh auth login` + `gh copilot` for CLI authentication. No test suite — verify manually.
 
 ## Architecture
-- 后端基于 Node.js + Express + Socket.io，入口为 [src/server.ts]。
-- Copilot SDK 封装在 [src/copilot.ts]，所有 AI 相关逻辑集中于此。
-- 工具注册与自定义在 [src/tools.ts] 和 [src/tools/] 目录下，支持扩展。
-- 文件上传路由在 [src/routes/upload.ts]，会话/存储相关逻辑在 [src/services/]。
-- 前端静态资源位于 [public/]，核心逻辑在 [public/js/app.js]。
 
-## Build and Test
-- 安装依赖：`npm install`
-- 启动开发服务器：`npm run dev`
-- 支持 Copilot CLI Server 模式，详见 README。
-- 暂无自动化测试脚本，建议手动验证主要功能。
+Three-tier backend in `src/`:
 
-## Project Conventions
-- 工具扩展采用模块化，新增工具放于 [src/tools/]，并在 [src/tools/index.ts] 注册。
-- 所有服务类统一放于 [src/services/]，如 agentManager、toolRegistry、storage。
-- Socket.io 事件命名与前后端严格对应，详见 README 的“API 接口”部分。
-- 环境变量通过 `.env` 或启动参数配置，参考 `.env.example`。
+1. **HTTP/WebSocket** (`server.ts`) — Express + Socket.io, 15+ event namespaces, REST for uploads/models
+2. **Services** (`services/`) — Domain logic: `agentManager`, `toolRegistry`, `mcpManager`, `skillManager`, `storage`
+3. **SDK Integration** (`copilot.ts`) — Wraps `CopilotClient`/`CopilotSession`, manages lifecycle, event forwarding, permission handling
 
-## Integration Points
-- 依赖 @github/copilot-sdk，需预先完成 `gh copilot` 认证。
-- 支持多模型切换，模型列表在 [README.md]“支持的模型”部分。
-- 文件上传接口为 `/api/upload`，会话管理接口为 `/api/sessions`。
+Frontend: vanilla JS SPA in `public/`, one manager module per feature (`agentManager.js`, `toolManager.js`, `mcpManager.js`, `skillManager.js`), core logic in `app.js`.
 
-## Security
-- 文件上传目录为 [uploads/]，请确保生产环境下有访问控制。
-- Copilot CLI 认证信息仅本地使用，不应暴露于前端。
-- 建议生产环境关闭详细日志，避免敏感信息泄露。
+Data: JSON files in `data/` (no database). Auto-creates with defaults on first run. Each file has a version field.
 
----
-如有不明确或遗漏之处，请反馈以便完善。
+## Critical Patterns
+
+### Two-Format Type Conversion
+
+Storage types (`AgentConfig` in `src/types/agent.ts`) differ from SDK types (`CustomAgentConfig`). Conversion in `agentManager.ts`:
+- `tools: null` in storage = "use all tools" → becomes `undefined` for SDK
+- `mcpServerIds` (string references) → resolved to full `MCPServerConfig` objects via `getMCPServersByIds()`
+- UI metadata (`icon`, `color`, `preferredModel`, `isDefault`) and `systemMessage`/`permissionPolicy`/`infiniteSession` are stripped during SDK conversion
+- Only agents with non-empty `prompt` are included in SDK output
+
+### Adding a Builtin Tool
+
+New tools go in `src/tools/builtin/` and MUST be registered in **both** exports in `src/tools/index.ts`:
+1. `builtinToolsMap` (Map: string ID → tool instance, used at runtime)
+2. `builtinToolsInfo` (array of `{id, name, description, parameters}`, used for UI)
+
+Missing from either breaks the tool silently.
+
+### Socket.io Event Pattern
+
+All events follow: `socket.on(event) → validate → call service → socket.emit(response)`.
+- Response events: `"agents-list"`, `"agent-created"`, etc. Always include `{ success: boolean }`.
+- Async handlers (e.g., `send-message`) use session-scoped naming: `user-input-response:${sessionId}`
+- Use `socket.once()` not `socket.on()` for single-use response listeners
+- Permission/input handlers MUST be set before `sendMessage()` and cleared in `finally`
+
+### Custom Tool Handler Types
+
+Three types in `src/tools/customHandler.ts`:
+- `http_get` / `http_post`: URL templates with `{{paramName}}` interpolation, optional `resultPath` for JSONPath extraction
+- `javascript`: Executed via `AsyncFunction` constructor — only `fetch` and `args` (serialized params) available in scope. No `console`, `process`, or Node APIs.
+
+### Storage Conventions
+
+- `readJsonFile()` returns defaults silently on missing/error — no throw
+- `createdAt` set only on INSERT; `updatedAt` always set on save
+- Default agent (`isDefault: true`) cannot be deleted
+- Agent names: 2-50 chars, `[a-zA-Z0-9_-]` only, must start with letter
+
+## Code Style
+
+- TypeScript strict mode, ES2022 target, NodeNext module resolution, ES modules (`"type": "module"`)
+- 2-space indent, single quotes preferred
+- All type definitions centralized in `src/types/agent.ts`
+- Zod for runtime schema validation of tool parameters
+- Comments in English; Chinese supplementary comments acceptable
+- Socket.io event names must match exactly between frontend (`public/js/`) and backend (`src/server.ts`)
