@@ -16,7 +16,12 @@ const state = {
   messageStates: new Map(),
   // 当前正在处理的消息ID
   activeMessageId: null,
+  // 当前 Agent ID
+  currentAgentId: null,
 };
+
+// 将 state 暴露到全局，供其他模块访问
+window.state = state;
 
 // ===== DOM 元素 =====
 const elements = {
@@ -39,6 +44,21 @@ document.addEventListener("DOMContentLoaded", () => {
   initSocket();
   initEventListeners();
   loadModels();
+  
+  // 初始化 Agent 和 Tool 管理器
+  if (window.agentManager) {
+    window.agentManager.init(state.socket);
+  }
+  if (window.toolManager) {
+    window.toolManager.init(state.socket);
+  }
+  // 初始化 MCP 和 Skills 管理器（挂载到 window 供 onclick 访问）
+  if (typeof MCPManager !== 'undefined') {
+    window.mcpManager = new MCPManager(state.socket);
+  }
+  if (typeof SkillManager !== 'undefined') {
+    window.skillManager = new SkillManager(state.socket);
+  }
 });
 
 function initElements() {
@@ -86,6 +106,12 @@ function initSocket() {
   // 工具事件
   state.socket.on("tool-call", handleToolCall);
   state.socket.on("tool-result", handleToolResult);
+
+  // 用户输入请求事件
+  state.socket.on("user-input-request", handleUserInputRequest);
+
+  // 权限请求事件
+  state.socket.on("permission-request", handlePermissionRequest);
 }
 
 function updateConnectionStatus(connected) {
@@ -116,6 +142,9 @@ function initEventListeners() {
   });
   elements.fileInput.addEventListener("change", handleFileSelect);
 
+  // 粘贴图片
+  elements.messageInput.addEventListener("paste", handlePaste);
+
   // 新建会话
   elements.newChatBtn.addEventListener("click", createNewSession);
 
@@ -143,9 +172,12 @@ function refreshSessions() {
 
 function createNewSession() {
   const sessionId = `session-${Date.now()}`;
+  // 获取当前选中的 Agent
+  const agentId = window.agentManager?.getCurrentAgentId();
   state.socket.emit("create-session", {
     sessionId,
     model: state.selectedModel,
+    agentId,
   });
 }
 
@@ -284,10 +316,16 @@ function sendMessage() {
 }
 
 function sendMessageToSession(sessionId, prompt, attachments, model) {
-  state.socket.emit("send-message", {
+  // 获取当前选中的 Agent
+  const agentId = window.agentManager?.getCurrentAgentId();
+  const syncMode = document.getElementById('sync-mode-toggle')?.checked || false;
+  const eventName = syncMode ? 'send-message-sync' : 'send-message';
+
+  state.socket.emit(eventName, {
     sessionId,
     prompt,
     model,
+    agentId,
     attachments: (attachments || []).map((a) => ({
       type: "file",
       path: a.path,
@@ -392,23 +430,37 @@ function handleReasoningDelta(data) {
 
 function handleMessageComplete(data) {
   if (data.sessionId !== state.currentSessionId) return;
-  
+
   state.isProcessing = false;
   updateSendButton();
-  
+
+  // Sync mode: no prior deltas, render full content now
+  if (data.mode === "sync" && data.content) {
+    const messageId = state.activeMessageId;
+    if (messageId) {
+      const messageEl = document.getElementById(messageId);
+      if (messageEl) {
+        const contentEl = messageEl.querySelector(".assistant-content");
+        if (contentEl) {
+          contentEl.innerHTML = renderMarkdown(data.content);
+        }
+      }
+    }
+  }
+
   // 清理消息状态
   const messageId = state.activeMessageId;
   if (messageId) {
     state.messageStates.delete(messageId);
     state.activeMessageId = null;
   }
-  
+
   // 保存到消息历史
   state.messages.push({
     role: "assistant",
     content: data.content,
   });
-  
+
   // 更新会话消息数
   refreshSessions();
 }
@@ -473,18 +525,22 @@ function handleToolResult(data) {
     if (toolCallEl) {
       const statusEl = toolCallEl.querySelector(".tool-call-status");
       if (statusEl) {
-        // 检查是否是错误结果
-        const isError = data.result && data.result.error;
-        const resultPreview = formatToolResult(data.result);
-        
-        if (isError) {
+        // Structured result (ToolResultObject)
+        if (data.isStructured && data.result && typeof data.result === 'object') {
+          statusEl.outerHTML = renderStructuredToolResult(data.result);
+        }
+        // Legacy: plain error check
+        else if (data.result && data.result.error) {
           statusEl.outerHTML = `
             <div class="tool-call-result tool-call-error">
               <span class="tool-result-label">❌ 失败</span>
               <span class="tool-result-preview">${escapeHtml(data.result.error)}</span>
             </div>
           `;
-        } else {
+        }
+        // Legacy: plain string result
+        else {
+          const resultPreview = formatToolResult(data.result);
           statusEl.outerHTML = `
             <div class="tool-call-result">
               <span class="tool-result-label">✅ 完成</span>
@@ -496,6 +552,49 @@ function handleToolResult(data) {
     }
     scrollToBottom();
   }
+}
+
+function renderStructuredToolResult(result) {
+  const statusIcons = { success: '✅', failure: '❌', rejected: '🚫', denied: '⛔' };
+  const statusLabels = { success: '成功', failure: '失败', rejected: '已拒绝', denied: '已禁止' };
+  const icon = statusIcons[result.resultType] || '✅';
+  const label = statusLabels[result.resultType] || result.resultType;
+  const cssClass = `tool-result-${result.resultType || 'success'}`;
+
+  let html = `<div class="tool-call-result tool-result-structured ${cssClass}">`;
+  html += `<div class="tool-result-status">${icon} ${label}</div>`;
+
+  // Text preview
+  if (result.textResultForLlm) {
+    const preview = result.textResultForLlm.length > 200
+      ? result.textResultForLlm.substring(0, 200) + '...'
+      : result.textResultForLlm;
+    html += `<span class="tool-result-preview">${escapeHtml(preview)}</span>`;
+  }
+
+  // Error
+  if (result.error) {
+    html += `<div class="tool-result-error-msg">${escapeHtml(result.error)}</div>`;
+  }
+
+  // Binary results (image preview)
+  if (result.binaryResultsForLlm?.length) {
+    result.binaryResultsForLlm.forEach(bin => {
+      if (bin.mimeType?.startsWith('image/')) {
+        html += `<img class="tool-binary-image" src="data:${bin.mimeType};base64,${bin.data}" alt="${escapeHtml(bin.description || 'Binary result')}" />`;
+      } else {
+        html += `<div class="tool-binary-info">📦 ${escapeHtml(bin.mimeType)} (${escapeHtml(bin.type)})</div>`;
+      }
+    });
+  }
+
+  // Session log (collapsible)
+  if (result.sessionLog) {
+    html += `<details class="tool-result-log"><summary>执行日志</summary><pre>${escapeHtml(result.sessionLog)}</pre></details>`;
+  }
+
+  html += '</div>';
+  return html;
 }
 
 function formatToolResult(result) {
@@ -572,6 +671,39 @@ async function handleFileSelect(e) {
   const files = Array.from(e.target.files);
   if (files.length === 0) return;
 
+  await uploadFiles(files);
+
+  // 清空文件输入
+  e.target.value = "";
+}
+
+// 处理粘贴事件
+async function handlePaste(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  const imageFiles = [];
+  for (const item of items) {
+    if (item.type.startsWith("image/")) {
+      const blob = item.getAsFile();
+      if (blob) {
+        // 为粘贴的图片生成文件名
+        const ext = item.type.split("/")[1] || "png";
+        const fileName = `pasted-image-${Date.now()}.${ext}`;
+        const file = new File([blob], fileName, { type: item.type });
+        imageFiles.push(file);
+      }
+    }
+  }
+
+  if (imageFiles.length > 0) {
+    e.preventDefault();
+    await uploadFiles(imageFiles);
+  }
+}
+
+// 上传文件到服务器
+async function uploadFiles(files) {
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
 
@@ -591,21 +723,27 @@ async function handleFileSelect(e) {
   } catch (error) {
     showError("上传失败: " + error.message);
   }
-
-  // 清空文件输入
-  e.target.value = "";
 }
 
 function renderAttachments() {
   elements.attachmentsPreview.innerHTML = state.attachments
-    .map(
-      (a, i) => `
-      <div class="attachment-preview">
-        <span>📎 ${a.originalName}</span>
-        <button class="remove-btn" onclick="removeAttachment(${i})">×</button>
-      </div>
-    `
-    )
+    .map((a, i) => {
+      const isImage = a.mimetype?.startsWith("image/");
+      if (isImage) {
+        return `
+          <div class="attachment-preview attachment-image">
+            <img src="/uploads/${a.filename}" alt="${a.originalName}" />
+            <button class="remove-btn" onclick="removeAttachment(${i})" title="移除">×</button>
+          </div>
+        `;
+      }
+      return `
+        <div class="attachment-preview">
+          <span>📎 ${a.originalName}</span>
+          <button class="remove-btn" onclick="removeAttachment(${i})">×</button>
+        </div>
+      `;
+    })
     .join("");
 }
 
@@ -667,7 +805,218 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// ===== 用户输入请求处理 =====
+function handleUserInputRequest(data) {
+  if (data.sessionId !== state.currentSessionId) return;
+
+  const overlay = document.getElementById("user-input-dialog");
+  const questionEl = document.getElementById("user-input-question");
+  const choicesEl = document.getElementById("user-input-choices");
+  const freeformEl = document.getElementById("user-input-freeform");
+  const textInput = document.getElementById("user-input-text");
+  const submitBtn = document.getElementById("user-input-submit");
+
+  // Display question
+  questionEl.textContent = data.question;
+
+  // Render choices if provided
+  choicesEl.innerHTML = "";
+  if (data.choices && data.choices.length > 0) {
+    data.choices.forEach((choice) => {
+      const btn = document.createElement("button");
+      btn.className = "user-input-choice-btn";
+      btn.textContent = choice;
+      btn.onclick = () => {
+        submitUserInput(data.sessionId, choice, false);
+      };
+      choicesEl.appendChild(btn);
+    });
+
+    // Show divider if freeform is also allowed
+    if (data.allowFreeform !== false) {
+      const divider = document.createElement("div");
+      divider.className = "user-input-divider";
+      divider.textContent = "— 或输入自定义回答 —";
+      choicesEl.appendChild(divider);
+    }
+  }
+
+  // Show/hide freeform input
+  if (data.allowFreeform !== false) {
+    freeformEl.style.display = "flex";
+    textInput.value = "";
+    textInput.focus();
+  } else {
+    freeformEl.style.display = "none";
+  }
+
+  // Handle freeform submit
+  const onSubmit = () => {
+    const answer = textInput.value.trim();
+    if (answer) {
+      submitUserInput(data.sessionId, answer, true);
+    }
+  };
+  submitBtn.onclick = onSubmit;
+  textInput.onkeydown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit();
+    }
+  };
+
+  // Show dialog
+  overlay.classList.add("show");
+}
+
+function submitUserInput(sessionId, answer, wasFreeform) {
+  const overlay = document.getElementById("user-input-dialog");
+  overlay.classList.remove("show");
+
+  state.socket.emit(`user-input-response:${sessionId}`, {
+    answer,
+    wasFreeform,
+  });
+
+  // Show the interaction in chat as a visual indicator
+  const messageEl = document.getElementById(state.activeMessageId);
+  if (messageEl) {
+    const toolsContainer = messageEl.querySelector(".tools-container");
+    if (toolsContainer) {
+      const inputHtml = `
+        <div class="tool-call">
+          <div class="tool-call-header">🙋 AI 询问</div>
+          <div class="tool-call-args">${escapeHtml(document.getElementById("user-input-question").textContent)}</div>
+          <div class="tool-call-result">
+            <span class="tool-result-label">💬 回答</span>
+            <span class="tool-result-preview">${escapeHtml(answer)}</span>
+          </div>
+        </div>
+      `;
+      toolsContainer.insertAdjacentHTML("beforeend", inputHtml);
+      scrollToBottom();
+    }
+  }
+}
+
+// ===== 权限请求处理 =====
+let pendingPermissionSessionId = null;
+
+const PERMISSION_KIND_LABELS = {
+  shell: "🖥️ 执行 Shell 命令",
+  write: "📝 写入文件",
+  read: "📖 读取文件",
+  mcp: "🔌 调用 MCP 工具",
+  url: "🌐 访问 URL",
+};
+
+function handlePermissionRequest(data) {
+  pendingPermissionSessionId = data.sessionId;
+
+  const kindLabel = PERMISSION_KIND_LABELS[data.kind] || `⚙️ ${data.kind}`;
+  document.getElementById("permission-kind").textContent = kindLabel;
+
+  // Show relevant details
+  const detailsEl = document.getElementById("permission-details");
+  const details = data.details || {};
+  let detailsHtml = "";
+  if (details.command) detailsHtml += `<div class="permission-detail-item"><strong>命令:</strong> <code>${escapeHtml(details.command)}</code></div>`;
+  if (details.path) detailsHtml += `<div class="permission-detail-item"><strong>路径:</strong> <code>${escapeHtml(details.path)}</code></div>`;
+  if (details.url) detailsHtml += `<div class="permission-detail-item"><strong>URL:</strong> <code>${escapeHtml(details.url)}</code></div>`;
+  if (details.toolName) detailsHtml += `<div class="permission-detail-item"><strong>工具:</strong> ${escapeHtml(details.toolName)}</div>`;
+  if (!detailsHtml) detailsHtml = `<div class="permission-detail-item">请求类型: ${data.kind}</div>`;
+  detailsEl.innerHTML = detailsHtml;
+
+  document.getElementById("permission-dialog").classList.add("show");
+}
+
+function submitPermissionResponse(decision) {
+  if (!pendingPermissionSessionId) return;
+
+  const sessionId = pendingPermissionSessionId;
+  pendingPermissionSessionId = null;
+
+  document.getElementById("permission-dialog").classList.remove("show");
+
+  state.socket.emit(`permission-response:${sessionId}`, {
+    kind: decision,
+  });
+
+  // Show interaction in chat
+  const messageEl = document.getElementById(state.activeMessageId);
+  if (messageEl) {
+    const toolsContainer = messageEl.querySelector(".tools-container");
+    if (toolsContainer) {
+      const kindText = document.getElementById("permission-kind").textContent;
+      const approved = decision === "approved";
+      const inputHtml = `
+        <div class="tool-call">
+          <div class="tool-call-header">🔐 权限请求</div>
+          <div class="tool-call-args">${escapeHtml(kindText)}</div>
+          <div class="tool-call-result">
+            <span class="tool-result-label">${approved ? "✅ 已批准" : "❌ 已拒绝"}</span>
+          </div>
+        </div>
+      `;
+      toolsContainer.insertAdjacentHTML("beforeend", inputHtml);
+      scrollToBottom();
+    }
+  }
+}
+
 // ===== 暴露到全局 =====
 window.switchSession = switchSession;
 window.deleteSession = deleteSession;
 window.removeAttachment = removeAttachment;
+window.submitPermissionResponse = submitPermissionResponse;
+
+// ===== 模态框辅助函数 =====
+function openSettingsModal() {
+  document.getElementById('settings-modal').classList.add('show');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settings-modal').classList.remove('show');
+}
+
+function switchTab(tabId) {
+  // 移除所有 tab 的 active 状态
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+  // 激活选中的 tab
+  const tab = document.getElementById(tabId);
+  if (tab) {
+    tab.classList.add('active');
+    // 找到对应的按钮并激活
+    const tabIds = ['agents-tab', 'tools-tab', 'groups-tab', 'mcp-tab', 'skills-tab'];
+    const btnIndex = tabIds.indexOf(tabId);
+    const btns = document.querySelectorAll('.modal-tabs .tab-btn');
+    if (btns[btnIndex]) {
+      btns[btnIndex].classList.add('active');
+    }
+  }
+
+  // 刷新对应 tab 的数据
+  if (tabId === 'tools-tab') {
+    state.socket.emit('list-tools');
+  } else if (tabId === 'groups-tab') {
+    state.socket.emit('list-tool-groups');
+  } else if (tabId === 'mcp-tab') {
+    if (window.mcpManager) window.mcpManager.loadServers();
+  } else if (tabId === 'skills-tab') {
+    if (window.skillManager) window.skillManager.loadSkills();
+  }
+}
+
+// 点击模态框外部关闭
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal')) {
+    e.target.classList.remove('show');
+  }
+});
+
+window.openSettingsModal = openSettingsModal;
+window.closeSettingsModal = closeSettingsModal;
+window.switchTab = switchTab;
+window.showToast = window.agentManager?.showToast;

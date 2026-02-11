@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html><head><style>
+html { background: #181B24; }
+body { width: 720pt; height: 405pt; margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; background-image: url('../assets/slide-bg.png'); background-size: 720pt 405pt; }
+.header { margin: 14pt 0 0 30pt; }
+.header h2 { color: #B165FB; font-size: 16pt; margin: 0; }
+.content { margin: 14pt 30pt 0 30pt; display: flex; gap: 16pt; }
+.col { flex: 1; }
+.section { background: #1E2130; border-radius: 6pt; padding: 14pt; margin-bottom: 10pt; }
+.section h3 { color: #B165FB; font-size: 11pt; margin: 0 0 10pt 0; }
+.section.green h3 { color: #40695B; }
+.tool { display: flex; margin-bottom: 8pt; padding-bottom: 8pt; border-bottom: 1pt solid #2A2D3A; }
+.tool:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.tool-name { flex: 0 0 110pt; }
+.tool-name p { color: #FFFFFF; font-size: 9pt; margin: 0; font-family: Courier New, monospace; }
+.tool-desc p { color: #8A82A6; font-size: 9pt; margin: 0; }
+.type-row { display: flex; align-items: flex-start; margin-bottom: 8pt; }
+.type-badge { background: #2A1F4E; border-radius: 3pt; padding: 3pt 8pt; flex: 0 0 80pt; margin-right: 10pt; }
+.type-badge p { color: #B165FB; font-size: 8pt; margin: 0; text-align: center; }
+.type-desc p { color: #C0B8D6; font-size: 8pt; margin: 0; line-height: 1.5; }
+.note { background: #1A2A22; border-radius: 4pt; padding: 8pt; margin-top: 8pt; border-left: 3pt solid #40695B; }
+.note p { color: #40695B; font-size: 8pt; margin: 0; }
+</style></head><body>
+<div class="header"><h2>工具系统</h2></div>
+<div class="content">
+  <div class="col">
+    <div class="section">
+      <h3>内置工具 Built-in Tools</h3>
+      <div class="tool">
+        <div class="tool-name"><p>get_current_time</p></div>
+        <div class="tool-desc"><p>获取当前时间（支持时区）</p></div>
+      </div>
+      <div class="tool">
+        <div class="tool-name"><p>calculate</p></div>
+        <div class="tool-desc"><p>数学表达式安全计算</p></div>
+      </div>
+      <div class="tool">
+        <div class="tool-name"><p>get_weather</p></div>
+        <div class="tool-desc"><p>天气数据查询（演示）</p></div>
+      </div>
+      <div class="tool">
+        <div class="tool-name"><p>process_text</p></div>
+        <div class="tool-desc"><p>文本处理（统计/转换/反转）</p></div>
+      </div>
+    </div>
+    <div class="note">
+      <p>所有工具使用 Zod Schema 验证参数</p>
+    </div>
+  </div>
+  <div class="col">
+    <div class="section green">
+      <h3>自定义工具类型</h3>
+      <div class="type-row">
+        <div class="type-badge"><p>HTTP GET</p></div>
+        <div class="type-desc"><p>模板 URL 参数插值，支持动态路径和查询参数</p></div>
+      </div>
+      <div class="type-row">
+        <div class="type-badge"><p>HTTP POST</p></div>
+        <div class="type-desc"><p>JSON Body 模板，支持结构化请求体</p></div>
+      </div>
+      <div class="type-row">
+        <div class="type-badge"><p>JavaScript</p></div>
+        <div class="type-desc"><p>沙盒代码执行，支持自定义业务逻辑</p></div>
+      </div>
+    </div>
+    <div class="section">
+      <h3>工具配置结构</h3>
+      <p style="color: #C0B8D6; font-size: 8pt; margin: 0 0 4pt 0;">JSON Schema 参数定义</p>
+      <p style="color: #C0B8D6; font-size: 8pt; margin: 0 0 4pt 0;">分组管理 (toolGroups)</p>
+      <p style="color: #C0B8D6; font-size: 8pt; margin: 0 0 4pt 0;">启用/禁用切换</p>
+      <p style="color: #C0B8D6; font-size: 8pt; margin: 0 0 4pt 0;">Agent 级工具权限控制</p>
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html><head><style>
+html { background: #181B24; }
+body { width: 720pt; height: 405pt; margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; background-image: url('../assets/slide-bg.png'); background-size: 720pt 405pt; }
+.header { margin: 14pt 0 0 30pt; }
+.header h2 { color: #B165FB; font-size: 16pt; margin: 0; }
+.content { margin: 14pt 30pt 0 30pt; display: flex; gap: 14pt; }
+.card { flex: 1; background: #1E2130; border-radius: 6pt; padding: 14pt; display: flex; flex-direction: column; }
+.card-head { border-bottom: 2pt solid #B165FB; padding-bottom: 6pt; margin-bottom: 8pt; }
+.card-head h3 { color: #FFFFFF; font-size: 11pt; margin: 0; }
+.card-head p { color: #B165FB; font-size: 8pt; margin: 2pt 0 0 0; }
+.card-body p { color: #C0B8D6; font-size: 8pt; margin: 0 0 5pt 0; line-height: 1.4; }
+.card-body p.highlight { color: #40695B; }
+.card:nth-child(1) .card-head { border-bottom-color: #B165FB; }
+.card:nth-child(2) .card-head { border-bottom-color: #40695B; }
+.card:nth-child(3) .card-head { border-bottom-color: #B165FB; }
+.card:nth-child(4) .card-head { border-bottom-color: #40695B; }
+</style></head><body>
+<div class="header"><h2>前端架构</h2></div>
+<div class="content">
+  <div class="card">
+    <div class="card-head">
+      <h3>Main Chat</h3>
+      <p>app.js · 25KB</p>
+    </div>
+    <div class="card-body">
+      <p>Socket.IO 客户端通信</p>
+      <p>集中式状态管理</p>
+      <p>消息气泡（左右布局）</p>
+      <p>可折叠推理区域</p>
+      <p>工具调用指示器</p>
+      <p>自动扩展输入框</p>
+      <p>Shift+Enter 多行</p>
+      <p class="highlight">模型选择器</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <h3>Agent Manager</h3>
+      <p>agentManager.js · 12KB</p>
+    </div>
+    <div class="card-body">
+      <p>Agent CRUD 操作</p>
+      <p>侧边栏选择器</p>
+      <p>创建/编辑/删除弹窗</p>
+      <p>工具选择界面</p>
+      <p class="highlight">设置默认 Agent</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <h3>Tool Manager</h3>
+      <p>toolManager.js · 16KB</p>
+    </div>
+    <div class="card-body">
+      <p>自定义工具创建</p>
+      <p>参数定义界面</p>
+      <p>工具组管理</p>
+      <p>启用/禁用切换</p>
+      <p class="highlight">实时注册表同步</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <h3>Styling</h3>
+      <p>style.css</p>
+    </div>
+    <div class="card-body">
+      <p>CSS Custom Properties</p>
+      <p>Flexbox 布局系统</p>
+      <p>响应式设计</p>
+      <p>Sidebar 280px</p>
+      <p>Header 60px</p>
+      <p class="highlight">GitHub 风格美学</p>
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html><head><style>
+html { background: #181B24; }
+body { width: 720pt; height: 405pt; margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; background-image: url('../assets/slide-bg.png'); background-size: 720pt 405pt; }
+.header { margin: 14pt 0 0 30pt; }
+.header h2 { color: #B165FB; font-size: 16pt; margin: 0; }
+.content { margin: 20pt 40pt 0 40pt; display: flex; flex-direction: column; }
+.desc { margin-bottom: 16pt; }
+.desc p { color: #E8E0F0; font-size: 12pt; line-height: 1.6; margin: 0 0 10pt 0; }
+.cards { display: flex; gap: 14pt; }
+.card { flex: 1; background: #1E2130; border-radius: 6pt; padding: 16pt; border-left: 3pt solid #B165FB; }
+.card h3 { color: #B165FB; font-size: 11pt; margin: 0 0 8pt 0; }
+.card p { color: #C0B8D6; font-size: 9pt; margin: 0 0 4pt 0; line-height: 1.5; }
+.tag { display: inline-block; background: #2A1F4E; border-radius: 3pt; padding: 2pt 8pt; margin: 2pt 4pt 2pt 0; }
+.tag p { color: #B165FB; font-size: 8pt; margin: 0; }
+</style></head><body>
+<div class="header"><h2>项目概述</h2></div>
+<div class="content">
+  <div class="desc">
+    <p>Copilot SDK Demo 是一个基于 <b>GitHub Copilot CLI SDK</b> (@github/copilot-sdk) 的全栈演示应用。提供 Web 聊天界面，支持与多个 AI 模型交互，展示工具调用、流式响应、会话管理等高级 SDK 功能。</p>
+  </div>
+  <div class="cards">
+    <div class="card">
+      <h3>核心定位</h3>
+      <p>展示如何使用 Copilot CLI SDK 构建自定义 AI 聊天助手的完整参考实现</p>
+    </div>
+    <div class="card">
+      <h3>关键能力</h3>
+      <div class="tag"><p>流式聊天</p></div>
+      <div class="tag"><p>多模型</p></div>
+      <div class="tag"><p>工具调用</p></div>
+      <div class="tag"><p>Agent</p></div>
+      <div class="tag"><p>文件处理</p></div>
+    </div>
+    <div class="card">
+      <h3>项目规模</h3>
+      <p>~5,100 行代码</p>
+      <p>全栈 TypeScript + JavaScript</p>
+      <p>前后端完整实现</p>
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html><head><style>
+html { background: #181B24; }
+body { width: 720pt; height: 405pt; margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; background-image: url('../assets/slide-bg.png'); background-size: 720pt 405pt; }
+.header { margin: 14pt 0 0 30pt; }
+.header h2 { color: #B165FB; font-size: 16pt; margin: 0; }
+.content { margin: 14pt 30pt 0 30pt; display: flex; flex-direction: column; gap: 10pt; }
+.mode { display: flex; gap: 12pt; align-items: stretch; }
+.mode-card { flex: 1; background: #1E2130; border-radius: 6pt; padding: 14pt; }
+.mode-card h3 { color: #FFFFFF; font-size: 11pt; margin: 0 0 4pt 0; }
+.mode-card p.label { color: #B165FB; font-size: 8pt; margin: 0 0 8pt 0; }
+.mode-card p { color: #C0B8D6; font-size: 9pt; margin: 0 0 3pt 0; line-height: 1.4; }
+.cmd { background: #141720; padding: 4pt 8pt; border-radius: 3pt; margin: 4pt 0 2pt 0; }
+.cmd p { color: #40695B; font-size: 8pt; margin: 0; font-family: Courier New, monospace; }
+.env { background: #1E2130; border-radius: 6pt; padding: 14pt; }
+.env h3 { color: #40695B; font-size: 11pt; margin: 0 0 8pt 0; }
+.env-row { display: flex; gap: 12pt; flex-wrap: wrap; }
+.env-item { flex: 1; min-width: 140pt; }
+.env-item p.name { color: #FFFFFF; font-size: 8pt; margin: 0; font-family: Courier New, monospace; }
+.env-item p.desc { color: #8A82A6; font-size: 8pt; margin: 2pt 0 0 0; }
+</style></head><body>
+<div class="header"><h2>部署与运行</h2></div>
+<div class="content">
+  <div class="mode">
+    <div class="mode-card">
+      <h3>默认模式 (stdio)</h3>
+      <p class="label">推荐开发使用</p>
+      <div class="cmd"><p>npm run dev</p></div>
+      <p>SDK 自动启动 Copilot CLI 进程</p>
+      <p>访问 http://localhost:3000</p>
+    </div>
+    <div class="mode-card">
+      <h3>Server 模式</h3>
+      <p class="label">外部 CLI 服务</p>
+      <div class="cmd"><p>copilot server --port 8080</p></div>
+      <div class="cmd"><p>COPILOT_CLI_URL=localhost:8080 npm run dev</p></div>
+      <p>连接外部 Copilot CLI Server</p>
+    </div>
+    <div class="mode-card">
+      <h3>生产构建</h3>
+      <p class="label">Production Build</p>
+      <div class="cmd"><p>npm run build</p></div>
+      <div class="cmd"><p>npm start</p></div>
+      <p>TypeScript 编译 → dist/ 目录</p>
+    </div>
+  </div>
+  <div class="env">
+    <h3>环境变量配置</h3>
+    <div class="env-row">
+      <div class="env-item">
+        <p class="name">COPILOT_CLI_URL</p>
+        <p class="desc">外部 CLI 服务地址</p>
+      </div>
+      <div class="env-item">
+        <p class="name">COPILOT_CLI_PATH</p>
+        <p class="desc">自定义 CLI 路径</p>
+      </div>
+      <div class="env-item">
+        <p class="name">COPILOT_LOG_LEVEL</p>
+        <p class="desc">日志级别 (info/debug)</p>
+      </div>
+      <div class="env-item">
+        <p class="name">PORT</p>
+        <p class="desc">服务端口 (默认 3000)</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

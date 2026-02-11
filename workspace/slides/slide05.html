@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html><head><style>
+html { background: #181B24; }
+body { width: 720pt; height: 405pt; margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; background-image: url('../assets/slide-bg.png'); background-size: 720pt 405pt; }
+.header { margin: 14pt 0 0 30pt; }
+.header h2 { color: #B165FB; font-size: 16pt; margin: 0; }
+.content { margin: 14pt 30pt 0 30pt; display: flex; gap: 16pt; }
+.tree { flex: 1; background: #1E2130; border-radius: 6pt; padding: 14pt; }
+.tree h3 { color: #B165FB; font-size: 10pt; margin: 0 0 10pt 0; }
+.dir { margin-bottom: 6pt; }
+.dir p { color: #FFFFFF; font-size: 9pt; margin: 0; font-family: Courier New, monospace; }
+.sub p { color: #8A82A6; font-size: 8pt; margin: 0 0 2pt 16pt; font-family: Courier New, monospace; }
+.stats { flex: 0 0 200pt; display: flex; flex-direction: column; gap: 10pt; }
+.stat-card { background: #1E2130; border-radius: 6pt; padding: 12pt; text-align: center; border-top: 2pt solid #B165FB; }
+.stat-card h3 { color: #B165FB; font-size: 24pt; margin: 0 0 4pt 0; }
+.stat-card p { color: #8A82A6; font-size: 9pt; margin: 0; }
+.modules { background: #1E2130; border-radius: 6pt; padding: 12pt; }
+.modules h3 { color: #40695B; font-size: 10pt; margin: 0 0 6pt 0; }
+.modules p { color: #C0B8D6; font-size: 8pt; margin: 0 0 3pt 0; }
+</style></head><body>
+<div class="header"><h2>系统架构</h2></div>
+<div class="content">
+  <div class="tree">
+    <h3>目录结构</h3>
+    <div class="dir"><p>copilot-sdk-demo/</p></div>
+    <div class="dir"><p>  public/</p></div>
+    <div class="sub"><p>index.html, css/style.css</p></div>
+    <div class="sub"><p>js/app.js, agentManager.js, toolManager.js</p></div>
+    <div class="dir"><p>  src/</p></div>
+    <div class="sub"><p>server.ts (608行) - Express + Socket.IO</p></div>
+    <div class="sub"><p>copilot.ts (755行) - SDK 封装 &amp; 会话</p></div>
+    <div class="sub"><p>tools/ - 内置 &amp; 自定义工具</p></div>
+    <div class="sub"><p>services/ - Agent/工具/存储服务</p></div>
+    <div class="sub"><p>routes/ - 文件上传接口</p></div>
+    <div class="sub"><p>types/ - TypeScript 类型定义</p></div>
+    <div class="dir"><p>  data/</p></div>
+    <div class="sub"><p>agents.json, custom.json, toolGroups.json</p></div>
+    <div class="dir"><p>  uploads/</p></div>
+    <div class="sub"><p>文件存储目录</p></div>
+  </div>
+  <div class="stats">
+    <div class="stat-card">
+      <h3>~5,100</h3>
+      <p>总代码行数</p>
+    </div>
+    <div class="stat-card">
+      <h3>3,000+</h3>
+      <p>后端 TypeScript</p>
+    </div>
+    <div class="stat-card">
+      <h3>2,000+</h3>
+      <p>前端 JavaScript</p>
+    </div>
+    <div class="modules">
+      <h3>核心模块</h3>
+      <p>server.ts - 服务端入口</p>
+      <p>copilot.ts - SDK 集成</p>
+      <p>agentManager.ts - Agent</p>
+      <p>toolRegistry.ts - 工具</p>
+      <p>storage.ts - 持久化</p>
+    </div>
+  </div>
+</div>
+</body></html>
